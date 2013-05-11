@@ -39,6 +39,17 @@
 					<list>
 						<ref bean="contexts" />
 
+						<!-- Resource handler -->
+						<bean class="org.eclipse.jetty.server.handler.ResourceHandler">
+							<property name="directoriesListed" value="true" />
+							<property name="welcomeFiles">
+								<list>
+									<value>index.html</value>
+								</list>
+							</property>
+							<property name="resourceBase" value="." />
+						</bean>
+
 						<!-- Servlet Context Handler -->
 						<bean class="org.eclipse.jetty.servlet.ServletContextHandler">
 							<property name="servletHandler" ref="servletHandler" />
@@ -94,7 +105,7 @@
 					</property>
 					<property name="initParameters">
 						<map>
-							<entry key="javax.ws.rs.Application" value="com.zenithss.smpp.SMPPApplication" />
+							<entry key="javax.ws.rs.Application" value="com.peoplecloud.smpp.SMPPApplication" />
 						</map>
 					</property>
 				</bean>
@@ -104,7 +115,7 @@
 			<list>
 				<bean class="org.eclipse.jetty.servlet.ServletMapping">
 					<property name="servletName" value="dispatcher" />
-					<property name="pathSpec" value="/*" />
+					<property name="pathSpec" value="/api/*" />
 				</bean>
 			</list>
 		</property>

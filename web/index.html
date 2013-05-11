@@ -1,0 +1,27 @@
+<html>
+<body>
+	<h3>Send SMS Message</h3>
+	<div>
+		<form id="sendMsgForm" name="sendMsgForm" title="Send SMS Message"
+			method="POST" action="/api/send">
+
+			<p>
+				<span>From Number</span><br /> <input title="From Number" id="from"
+					maxlength="11" name="from"><br />
+			</p>
+
+			<p>
+				<span>To Number</span><br /> <input title="To Number" id="to"
+					maxlength="11" name="to"><br />
+			</p>
+
+			<p>
+				<span>SMS Message</span><br /> <input title="Text Message"
+					id="message" name="message" maxlength="160" min="1" size="100">
+			</p>
+
+			<br /> <input type="submit" value="Send Message">
+		</form>
+	</div>
+</body>
+</html>
