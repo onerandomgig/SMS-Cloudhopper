@@ -14,6 +14,7 @@
 			<list>
 				<value>classpath:system.properties</value>
 				<value>classpath:log4j.properties</value>
+				<value>classpath:database.properties</value>
 			</list>
 		</property>
 	</bean>
@@ -23,8 +24,11 @@
 		<property name="location" value="classpath:system.properties"></property>
 	</bean>
 
-	<!-- Database jetty configuration -->
+	<!-- Jetty configuration -->
 	<import resource="jetty.xml" />
+
+	<!-- Database related configuration -->
+	<import resource="hibernate.xml" />
 
 	<!-- SMPP bean -->
 	<bean id="smppClient" class="com.peoplecloud.smpp.cloudhopper.SMPPClient"
@@ -35,12 +39,23 @@
 	<!-- Http Client -->
 	<bean id="httpClient" class="org.apache.http.impl.client.DefaultHttpClient"></bean>
 
-	<!-- Services -->
+	<!-- REST Services -->
 	<bean id="smsRestAPIService" name="smsRestAPIService"
 		class="com.peoplecloud.smpp.api.SMSRestAPI">
 		<constructor-arg ref="sysPropsResource"></constructor-arg>
 
 		<property name="smppClient" ref="smppClient"></property>
 		<property name="httpClient" ref="httpClient"></property>
+		<property name="dbPersistanceService" ref="dbPersistanceService"></property>
+	</bean>
+
+	<!-- Database Services -->
+	<bean id="dbPersistanceService" class="com.peoplecloud.smpp.service.DBPersistanceService">
+		<property name="basicDao" ref="basicDao"></property>
+	</bean>
+
+	<!-- Data Access Objects -->
+	<bean id="basicDao" class="com.peoplecloud.smpp.dao.BasicDAO">
+		<property name="sessionFactory" ref="sessionFactory"></property>
 	</bean>
 </beans>

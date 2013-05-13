@@ -2,6 +2,7 @@ package com.peoplecloud.smpp.api;
 
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
@@ -25,6 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.peoplecloud.smpp.cloudhopper.SMPPClient;
+import com.peoplecloud.smpp.persistable.vo.Message;
+import com.peoplecloud.smpp.service.DBPersistanceService;
 
 @Path("/api")
 @SuppressWarnings("unchecked")
@@ -34,6 +37,7 @@ public class SMSRestAPI implements SMSMessageListener {
 
 	private DefaultHttpClient httpClient;
 	private SMPPClient smppClient;
+	private DBPersistanceService dbPersistanceService;
 
 	private Properties configProps;
 
@@ -58,6 +62,15 @@ public class SMSRestAPI implements SMSMessageListener {
 		return httpClient;
 	}
 
+	public DBPersistanceService getDbPersistanceService() {
+		return dbPersistanceService;
+	}
+
+	public void setDbPersistanceService(
+			DBPersistanceService dbPersistanceService) {
+		this.dbPersistanceService = dbPersistanceService;
+	}
+
 	@POST
 	@Path("/send")
 	@Produces("application/json")
@@ -73,6 +86,9 @@ public class SMSRestAPI implements SMSMessageListener {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Send Msg Request: " + lRequestJSON.toJSONString());
 		}
+
+		// Save message to database.
+		persistMessageToDB(aMsg, aSendFromNumber, aSendToNumber, Message.MT);
 
 		String lSentMsg = smppClient.sendSMSMessage(aMsg, aSendFromNumber,
 				aSendToNumber);
@@ -189,6 +205,10 @@ public class SMSRestAPI implements SMSMessageListener {
 		}
 
 		try {
+			// Save message to database.
+			persistMessageToDB(aMessage, aFromNumber, aToNumber, Message.MO);
+
+			// Invoke registered URL.
 			Response lResp = receiveMessage(aMessage, aFromNumber, aToNumber);
 
 			if (logger.isDebugEnabled()) {
@@ -198,6 +218,38 @@ public class SMSRestAPI implements SMSMessageListener {
 		} catch (URISyntaxException e) {
 			logger.error("Could not forward received message via http: "
 					+ lRequestJSON.toJSONString());
+		}
+	}
+
+	private void persistMessageToDB(String aMessage, String aFromNumber,
+			String aToNumber, String aMessageType) {
+		if (logger.isDebugEnabled()) {
+			logger.debug("Persisting message to database: [" + aMessage + ", "
+					+ aFromNumber + ", " + aToNumber + ", " + aMessageType
+					+ "]");
+		}
+
+		Message msg = new Message();
+		msg.setMessage(aMessage);
+		msg.setFromNumber(aFromNumber);
+		msg.setToNumber(aToNumber);
+
+		if (aMessageType.equals(Message.MO)) {
+			msg.setReceivedDate(new Date());
+		}
+
+		if (aMessageType.equals(Message.MT)) {
+			msg.setSentDate(new Date());
+		}
+
+		msg.setMessageType(aMessageType);
+
+		dbPersistanceService.save(msg);
+
+		if (logger.isDebugEnabled()) {
+			logger.debug("Message persisting to database successfully: ["
+					+ aMessage + ", " + aFromNumber + ", " + aToNumber + ", "
+					+ aMessageType + "]");
 		}
 	}
 }

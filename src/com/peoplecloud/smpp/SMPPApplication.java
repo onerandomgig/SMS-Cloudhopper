@@ -27,6 +27,7 @@ public class SMPPApplication extends Application {
 			lWebServer.start();
 		} catch (Exception ex) {
 			ex.printStackTrace();
+			System.exit(-1);
 		}
 	}
 

@@ -52,7 +52,17 @@
 
 						<!-- Servlet Context Handler -->
 						<bean class="org.eclipse.jetty.servlet.ServletContextHandler">
+
+							<!-- Start the H2 database server -->
+							<property name="eventListeners">
+								<list>
+									<bean class="org.h2.server.web.DbStarter"></bean>
+								</list>
+							</property>
+							
+							<!-- Add servlet handlers -->
 							<property name="servletHandler" ref="servletHandler" />
+
 							<property name="contextPath" value="/" />
 						</bean>
 
@@ -109,6 +119,18 @@
 						</map>
 					</property>
 				</bean>
+
+				<bean class="org.eclipse.jetty.servlet.ServletHolder">
+					<property name="name" value="H2Console" />
+					<property name="servlet">
+						<bean class="org.h2.server.web.WebServlet" />
+					</property>
+					<property name="initParameters">
+						<map>
+							<entry key="javax.ws.rs.Application" value="com.peoplecloud.smpp.SMPPApplication" />
+						</map>
+					</property>
+				</bean>
 			</list>
 		</property>
 		<property name="servletMappings">
@@ -117,8 +139,12 @@
 					<property name="servletName" value="dispatcher" />
 					<property name="pathSpec" value="/api/*" />
 				</bean>
+
+				<bean class="org.eclipse.jetty.servlet.ServletMapping">
+					<property name="servletName" value="H2Console"></property>
+					<property name="pathSpec" value="/console/*"></property>
+				</bean>
 			</list>
 		</property>
 	</bean>
-
 </beans>

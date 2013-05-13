@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.0.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.0.xsd">
+
+	<!-- Note : Datasource should not be created before DB Server is up and 
+		running -->
+	<bean class="com.mchange.v2.c3p0.ComboPooledDataSource" id="dataSource"
+		destroy-method="close">
+		<property name="driverClass" value="${h2.db.jdbc.driver}" />
+		<property name="jdbcUrl" value="${h2.db.connection.url}" />
+		<property name="user" value="${h2.db.connection.username}" />
+		<property name="password" value="${h2.db.connection.password}" />
+		<property name="initialPoolSize" value="${db.initial.poolsize}" />
+		<property name="minPoolSize" value="${min.pool.size}" />
+		<property name="maxPoolSize" value="${max.pool.size}" />
+		<property name="checkoutTimeout" value="${check.out.timeout}" />
+		<property name="maxStatements" value="${max.statements}" />
+		<property name="automaticTestTable" value="${automatic.test.table}" />
+		<property name="testConnectionOnCheckin" value="${test.connection.checkin}" />
+		<property name="idleConnectionTestPeriod" value="${idle.connection.test.period}" />
+		<property name="usesTraditionalReflectiveProxies" value="${uses.traditional.reflective.proxies}" />
+		<property name="numHelperThreads" value="${num.helper.threads}" />
+		<property name="maxIdleTime" value="${max.idle.time}" />
+	</bean>
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean">
+
+		<property name="exposeTransactionAwareSessionFactory" value="true"></property>
+		<property name="dataSource" ref="dataSource" />
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.H2Dialect</prop>
+				<prop key="hibernate.cache.provider_class">org.hibernate.cache.NoCacheProvider</prop>
+				<prop key="hibernate.show_sql">false</prop>
+				<prop key="hibernate.hbm2ddl.auto">update</prop>
+				<prop key="hibernate.connection.autocommit">false</prop>
+			</props>
+		</property>
+		<property name="packagesToScan">
+			<list>
+				<value>com.peoplecloud.smpp.persistable.vo</value>
+			</list>
+		</property>
+
+		<property name="schemaUpdate" value="true"></property>
+	</bean>
+
+	<tx:annotation-driven transaction-manager="txMgr" />
+
+	<!-- org.springframework.jdbc.datasource.DataSourceTransactionManager -->
+	<!--org.springframework.orm.hibernate3.HibernateTransactionManager -->
+	<bean id="txMgr"
+		class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory"></property>
+	</bean>
+</beans>
