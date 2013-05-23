@@ -7,15 +7,18 @@ import java.util.List;
 import java.util.Properties;
 
 import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -27,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.peoplecloud.smpp.cloudhopper.SMPPClient;
 import com.peoplecloud.smpp.persistable.vo.Message;
-import com.peoplecloud.smpp.service.DBPersistanceService;
+import com.peoplecloud.smpp.service.MessagePersistanceService;
 
 @Path("/api")
 @SuppressWarnings("unchecked")
@@ -37,7 +40,7 @@ public class SMSRestAPI implements SMSMessageListener {
 
 	private DefaultHttpClient httpClient;
 	private SMPPClient smppClient;
-	private DBPersistanceService dbPersistanceService;
+	private MessagePersistanceService dbPersistanceService;
 
 	private Properties configProps;
 
@@ -62,13 +65,22 @@ public class SMSRestAPI implements SMSMessageListener {
 		return httpClient;
 	}
 
-	public DBPersistanceService getDbPersistanceService() {
+	public MessagePersistanceService getDbPersistanceService() {
 		return dbPersistanceService;
 	}
 
 	public void setDbPersistanceService(
-			DBPersistanceService dbPersistanceService) {
+			MessagePersistanceService dbPersistanceService) {
 		this.dbPersistanceService = dbPersistanceService;
+	}
+
+	@GET
+	@Path("/send")
+	@Produces("application/json")
+	public Response requestSendMessage(@QueryParam("message") String aMsg,
+			@QueryParam("from") String aSendFromNumber,
+			@QueryParam("to") String aSendToNumber) throws URISyntaxException {
+		return sendSMS(aMsg, aSendFromNumber, aSendToNumber);
 	}
 
 	@POST
@@ -77,7 +89,11 @@ public class SMSRestAPI implements SMSMessageListener {
 	public Response sendMessage(@FormParam("message") String aMsg,
 			@FormParam("from") String aSendFromNumber,
 			@FormParam("to") String aSendToNumber) throws URISyntaxException {
+		return sendSMS(aMsg, aSendFromNumber, aSendToNumber);
+	}
 
+	private Response sendSMS(String aMsg, String aSendFromNumber,
+			String aSendToNumber) {
 		JSONObject lRequestJSON = new JSONObject();
 		lRequestJSON.put("msg", aMsg);
 		lRequestJSON.put("from", aSendFromNumber);
@@ -131,6 +147,43 @@ public class SMSRestAPI implements SMSMessageListener {
 
 			ResponseHandler<String> lResponseHandler = new BasicResponseHandler();
 			lResponseBody = httpClient.execute(httpost, lResponseHandler);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+
+		lRequestJSON.put("response", lResponseBody);
+		if (logger.isDebugEnabled()) {
+			logger.debug("Received Msg: " + lRequestJSON.toJSONString());
+		}
+
+		return Response.status(Status.OK).entity(lResponseBody).build();
+	}
+
+	@GET
+	@Path("/receive")
+	@Produces("application/json")
+	public Response sendReceiveMessage(@QueryParam("message") String aMsg,
+			@QueryParam("from") String aReceiveFromNumber,
+			@QueryParam("to") String aSentToNumber) throws URISyntaxException {
+
+		JSONObject lRequestJSON = new JSONObject();
+		lRequestJSON.put("msg", aMsg);
+		lRequestJSON.put("from", aReceiveFromNumber);
+		lRequestJSON.put("to", aSentToNumber);
+
+		if (logger.isDebugEnabled()) {
+			logger.debug("Received Msg: " + lRequestJSON.toJSONString());
+		}
+
+		HttpGet httpGet = new HttpGet(
+				configProps.getProperty("smpp.http.forward.listener.url")
+						+ "?message=" + aMsg + "&from=" + aReceiveFromNumber
+						+ "&to=" + aSentToNumber);
+		String lResponseBody = "";
+
+		try {
+			ResponseHandler<String> lResponseHandler = new BasicResponseHandler();
+			lResponseBody = httpClient.execute(httpGet, lResponseHandler);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -244,7 +297,7 @@ public class SMSRestAPI implements SMSMessageListener {
 
 		msg.setMessageType(aMessageType);
 
-		dbPersistanceService.save(msg);
+		dbPersistanceService.saveMessage(msg);
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Message persisting to database successfully: ["

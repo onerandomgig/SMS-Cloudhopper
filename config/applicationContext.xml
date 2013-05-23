@@ -50,12 +50,11 @@
 	</bean>
 
 	<!-- Database Services -->
-	<bean id="dbPersistanceService" class="com.peoplecloud.smpp.service.DBPersistanceService">
-		<property name="basicDao" ref="basicDao"></property>
+	<bean id="dbPersistanceService" class="com.peoplecloud.smpp.service.MessagePersistanceService">
+		<property name="msgDAO" ref="msgDAO"></property>
 	</bean>
 
 	<!-- Data Access Objects -->
-	<bean id="basicDao" class="com.peoplecloud.smpp.dao.BasicDAO">
-		<property name="sessionFactory" ref="sessionFactory"></property>
-	</bean>
+	<bean id="msgDAO" class="com.peoplecloud.smpp.dao.MessageDAO"></bean>
+	    
 </beans>
