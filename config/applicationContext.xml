@@ -28,7 +28,7 @@
 	<import resource="jetty.xml" />
 
 	<!-- Database related configuration -->
-	<import resource="hibernate.xml" />
+	<import resource="datasource.xml" />
 
 	<!-- SMPP bean -->
 	<bean id="smppClient" class="com.peoplecloud.smpp.cloudhopper.SMPPClient"
@@ -51,10 +51,9 @@
 
 	<!-- Database Services -->
 	<bean id="dbPersistanceService" class="com.peoplecloud.smpp.service.MessagePersistanceService">
-		<property name="msgDAO" ref="msgDAO"></property>
-	</bean>
+			<property name="msgDAO" ref="msgDAO"></property>
+				</bean>
 
 	<!-- Data Access Objects -->
 	<bean id="msgDAO" class="com.peoplecloud.smpp.dao.MessageDAO"></bean>
-	    
 </beans>

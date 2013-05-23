@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+    xmlns:tx="http://www.springframework.org/schema/tx" 
+    xmlns:aop="http://www.springframework.org/schema/aop" 
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.0.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.0.xsd">
+
+    <bean id="entityScanner" class="com.peoplecloud.smpp.utils.EntityScanner">
+        <property name="locationPatterns" value="${entityScanner.locationPatterns}"/>
+        <property name="targetPersistenceUnits" value="${entityScanner.targetPersistenceUnits}"/>
+        <property name="classesToExclude" value="${entityScanner.classesToExclude}"/>
+        <property name="entityScanPathHook" value="myJpaScanPathHook"/>
+    </bean>
+    
+    <bean class="com.mchange.v2.c3p0.ComboPooledDataSource" id="dataSource">
+        <property name="driverClass" value="${h2.db.jdbc.driver}"/>
+        <property name="jdbcUrl" value="${h2.db.connection.url}"/>
+        <property name="user" value="${h2.db.connection.username}"/>
+        <property name="password" value="${h2.db.connection.password}"/>
+        <property name="initialPoolSize" value="${db.initial.poolsize}"/>
+        <property name="minPoolSize" value="${min.pool.size}"/>
+        <property name="maxPoolSize" value="${max.pool.size}"/>
+        <property name="checkoutTimeout" value="${check.out.timeout}"/>
+        <property name="maxStatements" value="${max.statements}"/>
+        <property name="automaticTestTable" value="${automatic.test.table}"/>
+        <property name="testConnectionOnCheckin" value="${test.connection.checkin}"/>
+        <property name="idleConnectionTestPeriod" value="${idle.connection.test.period}"/>
+        <property name="usesTraditionalReflectiveProxies" value="${uses.traditional.reflective.proxies}"/>
+        <property name="numHelperThreads" value="${num.helper.threads}"/>
+        <property name="maxIdleTime" value="${max.idle.time}"/>
+    </bean>
+    
+    <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+        <property name="persistenceUnitName" value="smpp-persistence"/>
+        <property name="persistenceProviderClass" value="org.hibernate.ejb.HibernatePersistence"/>
+        <property name="jpaDialect">
+            <bean class="org.springframework.orm.jpa.vendor.HibernateJpaDialect"></bean>
+        </property>
+        <property name="jpaVendorAdapter">
+            <bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter"></bean>
+        </property>
+        <property name="packagesToScan" value="com.**.*"/>
+        <property name="dataSource" ref="dataSource"/>
+        <property name="jpaProperties">
+            <props>
+                <prop key="hibernate.dialect">org.hibernate.dialect.H2Dialect</prop>
+                <prop key="hibernate.connection.autocommit">false</prop>
+		        <prop key="hibernate.enable_lazy_load_no_trans">true</prop>
+                
+                <prop key="hibernate.show_sql">true</prop>
+                <prop key="hibernate.hbm2ddl.auto">update</prop>
+            </props>
+        </property>
+	    
+        <property name="persistenceUnitPostProcessors">
+            <list>
+                <ref bean="entityScanner" />
+            </list>
+        </property>
+    </bean>
+    
+    <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+        <property name="entityManagerFactory" ref="entityManagerFactory"></property>
+    </bean>
+    <bean class="org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor"/>
+    
+    <tx:annotation-driven />
+</beans>
