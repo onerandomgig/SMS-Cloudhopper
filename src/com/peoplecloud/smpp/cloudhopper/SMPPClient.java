@@ -170,8 +170,8 @@ public class SMPPClient {
 
 	public String sendSMSMessage(String aMessage, String aSentFromNumber,
 			String aSendToNumber) {
-		byte[] textBytes = CharsetUtil
-				.encode(aMessage, CharsetUtil.CHARSET_GSM);
+		byte[] textBytes = CharsetUtil.encode(aMessage,
+				CharsetUtil.CHARSET_UTF_8);
 
 		try {
 			SubmitSm submitMsg = new SubmitSm();

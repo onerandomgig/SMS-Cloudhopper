@@ -41,19 +41,23 @@
 
 	<!-- REST Services -->
 	<bean id="smsRestAPIService" name="smsRestAPIService"
-		class="com.peoplecloud.smpp.api.SMSRestAPI">
-		<constructor-arg ref="sysPropsResource"></constructor-arg>
+		class="com.peoplecloud.smpp.api.SMSRestAPI" init-method="initialize">
 
 		<property name="smppClient" ref="smppClient"></property>
 		<property name="httpClient" ref="httpClient"></property>
 		<property name="dbPersistanceService" ref="dbPersistanceService"></property>
+		<property name="smsCallbackService" ref="smsCallbackService"></property>
 	</bean>
 
 	<!-- Database Services -->
 	<bean id="dbPersistanceService" class="com.peoplecloud.smpp.service.MessagePersistanceService">
-			<property name="msgDAO" ref="msgDAO"></property>
-				</bean>
-
+		<property name="msgDAO" ref="msgDAO"></property>
+	</bean>
+	<bean id="smsCallbackService" class="com.peoplecloud.smpp.service.SMSCallbackService">
+		<property name="callbackDAO" ref="callbackDAO"></property>
+	</bean>
+	
 	<!-- Data Access Objects -->
 	<bean id="msgDAO" class="com.peoplecloud.smpp.dao.MessageDAO"></bean>
+	<bean id="callbackDAO" class="com.peoplecloud.smpp.dao.SMSCallbackDAO"></bean>
 </beans>

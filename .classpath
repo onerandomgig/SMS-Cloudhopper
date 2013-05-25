@@ -76,5 +76,8 @@
 	<classpathentry kind="lib" path="lib/jta-1.1.jar"/>
 	<classpathentry kind="lib" path="lib/dom4j-1.6.1.jar"/>
 	<classpathentry kind="lib" path="lib/javassist-3.9.0.GA.jar"/>
+	<classpathentry kind="lib" path="lib/antlr-2.7.7.jar"/>
+	<classpathentry kind="lib" path="lib/snakeyaml-1.11.jar"/>
+	<classpathentry kind="lib" path="lib/mail-1.4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

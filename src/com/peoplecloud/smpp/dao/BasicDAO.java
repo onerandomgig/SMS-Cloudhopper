@@ -265,7 +265,8 @@ public class BasicDAO<T, ID extends Serializable> {
 	 */
 
 	public void delete(T entity) {
-		getEntityManager().remove(entity);
+		T mergedEntity = getEntityManager().merge(entity);
+		getEntityManager().remove(mergedEntity);
 	}
 
 	/**
