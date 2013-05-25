@@ -207,7 +207,9 @@ public class SMPPClient {
 	}
 
 	public void registerListener(SMSMessageListener aMsgListener) {
-		listOfMessageListeners.add(aMsgListener);
+		if (!listOfMessageListeners.contains(aMsgListener)) {
+			listOfMessageListeners.add(aMsgListener);
+		}
 	}
 
 	public void setListOfMessageListeners(List<SMSMessageListener> aListenerList) {
@@ -372,10 +374,10 @@ public class SMPPClient {
 
 	public static Properties getDefaultProperties() {
 		Properties lDefaultProps = new Properties();
-		lDefaultProps.put("smsc.server.host", "10.5.210.201");
-		lDefaultProps.put("smsc.server.port", "5815");
-		lDefaultProps.put("smsc.server.systemid", "ZenithFree");
-		lDefaultProps.put("smsc.server.password", "ztpass");
+		lDefaultProps.put("smsc.server.host", "XX.XX.XX.XX");
+		lDefaultProps.put("smsc.server.port", "0000");
+		lDefaultProps.put("smsc.server.systemid", "XXXXX");
+		lDefaultProps.put("smsc.server.password", "XXXXX");
 
 		lDefaultProps.put("smsc.server.requestdeliveryreceipt", "false");
 		lDefaultProps.put("smpp.session.enquirelink.interval", "30000");

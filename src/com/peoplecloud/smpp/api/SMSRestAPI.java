@@ -6,6 +6,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -17,12 +19,15 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
+import org.apache.http.impl.conn.SchemeRegistryFactory;
 import org.apache.http.message.BasicNameValuePair;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -42,16 +47,27 @@ public class SMSRestAPI implements SMSMessageListener {
 	private static final Logger logger = LoggerFactory
 			.getLogger(SMSRestAPI.class);
 
-	private DefaultHttpClient httpClient;
+	private String name;
+	private HttpClient httpClient;
 	private SMPPClient smppClient;
 
+	private ExecutorService msgForwardExecutorService;
 	private MessagePersistanceService dbPersistanceService;
 	private SMSCallbackService smsCallbackService;
 
 	private Map<String, List<MessageCallback>> registeredListenersMap;
 
-	public SMSRestAPI() {
+	public SMSRestAPI(String aName) {
+		name = aName;
 		registeredListenersMap = new HashMap<String, List<MessageCallback>>();
+		msgForwardExecutorService = Executors.newFixedThreadPool(10);
+
+		PoolingClientConnectionManager cxMgr = new PoolingClientConnectionManager(
+				SchemeRegistryFactory.createDefault());
+		cxMgr.setMaxTotal(100);
+		cxMgr.setDefaultMaxPerRoute(20);
+
+		httpClient = new DefaultHttpClient(cxMgr);
 	}
 
 	public SMPPClient getSmppClient() {
@@ -63,11 +79,11 @@ public class SMSRestAPI implements SMSMessageListener {
 		this.smppClient.registerListener(this);
 	}
 
-	public void setHttpClient(DefaultHttpClient httpclient) {
+	public void setHttpClient(HttpClient httpclient) {
 		this.httpClient = httpclient;
 	}
 
-	public DefaultHttpClient getHttpClient() {
+	public HttpClient getHttpClient() {
 		return httpClient;
 	}
 
@@ -335,7 +351,8 @@ public class SMSRestAPI implements SMSMessageListener {
 
 		lRequestJSON.put("response", lResponseBody);
 		if (logger.isDebugEnabled()) {
-			logger.debug("Received Msg: " + lRequestJSON.toJSONString());
+			logger.debug("Status - Forward Msg via HTTP POST: "
+					+ lRequestJSON.toJSONString());
 		}
 
 		return Response.status(Status.OK).entity(lResponseBody).build();
@@ -366,7 +383,8 @@ public class SMSRestAPI implements SMSMessageListener {
 		return Response.status(Status.OK).entity(lRequestJSON).build();
 	}
 
-	public void notify(String aMessage, String aFromNumber, String aToNumber) {
+	public void notify(final String aMessage, final String aFromNumber,
+			final String aToNumber) {
 		JSONObject lRequestJSON = new JSONObject();
 		lRequestJSON.put("msg", aMessage);
 		lRequestJSON.put("from", aFromNumber);
@@ -385,27 +403,55 @@ public class SMSRestAPI implements SMSMessageListener {
 			List<MessageCallback> lCallbacks = registeredListenersMap
 					.get(aToNumber);
 
-			Response lResp = null;
 			if (lCallbacks != null) {
-				for (MessageCallback lCallback : lCallbacks) {
+				for (final MessageCallback lCallback : lCallbacks) {
 					if (lCallback.getCallbackMethod().equals(
 							MessageCallback.CALL_BACK_HTTP_METHOD_GET)) {
-						lResp = requestForwardMessage(
-								new String(aMessage.getBytes(), "utf-8"),
-								aToNumber, lCallback.getCallBackURL(),
-								lCallback.getAppName());
+
+						msgForwardExecutorService.execute(new Runnable() {
+							public void run() {
+
+								Response lResp = null;
+								try {
+									lResp = requestForwardMessage(new String(
+											aMessage.getBytes(), "utf-8"),
+											aToNumber, lCallback
+													.getCallBackURL(),
+											lCallback.getAppName());
+
+									if (logger.isDebugEnabled()) {
+										logger.debug("Message forwarded successfully to : "
+												+ lResp.getEntity().toString());
+									}
+								} catch (Exception ex) {
+									logger.error("Message could not be delivered successfully to : "
+											+ lResp.getEntity().toString());
+								}
+							}
+						});
 					} else if (lCallback.getCallbackMethod().equals(
 							MessageCallback.CALL_BACK_HTTP_METHOD_POST)) {
-						lResp = forwardMessage(aMessage, aToNumber,
-								lCallback.getCallBackURL(),
-								lCallback.getAppName());
+						msgForwardExecutorService.execute(new Runnable() {
+							public void run() {
+
+								Response lResp = null;
+								try {
+									lResp = forwardMessage(aMessage, aToNumber,
+											lCallback.getCallBackURL(),
+											lCallback.getAppName());
+
+									if (logger.isDebugEnabled()) {
+										logger.debug("Message forwarded successfully to : "
+												+ lResp.getEntity().toString());
+									}
+								} catch (Exception ex) {
+									logger.error("Message could not be delivered successfully to : "
+											+ lResp.getEntity().toString());
+								}
+							}
+						});
 					}
 				}
-			}
-
-			if (logger.isDebugEnabled()) {
-				logger.debug("Message forwarded successfully: "
-						+ lResp.getEntity().toString());
 			}
 		} catch (Exception e) {
 			logger.error("Could not forward received message via http: "
@@ -443,5 +489,35 @@ public class SMSRestAPI implements SMSMessageListener {
 					+ aMessage + ", " + aFromNumber + ", " + aToNumber + ", "
 					+ aMessageType + "]");
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		SMSRestAPI other = (SMSRestAPI) obj;
+		if (name == null) {
+			if (other.name != null)
+				return false;
+		} else if (!name.equals(other.name))
+			return false;
+		return true;
+	}
+
+	@Override
+	public String toString() {
+		return "SMSRestAPI [name=" + name + "]";
 	}
 }

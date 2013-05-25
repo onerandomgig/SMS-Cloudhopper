@@ -36,15 +36,13 @@
 		<constructor-arg ref="sysPropsResource"></constructor-arg>
 	</bean>
 
-	<!-- Http Client -->
-	<bean id="httpClient" class="org.apache.http.impl.client.DefaultHttpClient"></bean>
-
 	<!-- REST Services -->
 	<bean id="smsRestAPIService" name="smsRestAPIService"
 		class="com.peoplecloud.smpp.api.SMSRestAPI" init-method="initialize">
 
+	    <constructor-arg value="SMS REST API INTERFACE"></constructor-arg>
+	    
 		<property name="smppClient" ref="smppClient"></property>
-		<property name="httpClient" ref="httpClient"></property>
 		<property name="dbPersistanceService" ref="dbPersistanceService"></property>
 		<property name="smsCallbackService" ref="smsCallbackService"></property>
 	</bean>

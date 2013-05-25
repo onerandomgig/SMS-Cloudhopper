@@ -25,12 +25,12 @@ public class SMSTransceiver {
 
 	public static void main(String[] args) {
 		SMSTransceiver lTranceiver = SMSTransceiver.getInstance();
-		lTranceiver.setSMSEndPoints("http://msg2.zenithss.com/api/send",
-				"http://msg2.zenithss.com/api/registercallback",
-				"http://msg2.zenithss.com/api/unregistercallback");
+		lTranceiver.setSMSEndPoints("http://localhost:8080/api/send",
+				"http://localhost:8080/api/registercallback",
+				"http://localhost:8080/api/unregistercallback");
 
 		lTranceiver.registerReceieveSMSCallbackURL("Logger",
-				"http://msg2.zenithss.com/api/log",
+				"http://localhost:8080/api/log",
 				MessageCallback.CALL_BACK_HTTP_METHOD_POST, new String[] {
 						"100", "200" });
 	}
