@@ -16,7 +16,6 @@ import com.peoplecloud.smpp.persistable.vo.MessageCallback;
 
 @SuppressWarnings("unchecked")
 public class SMSTransceiver {
-	private static SMSTransceiver instance;
 	private DefaultHttpClient httpClient;
 
 	private String SEND_SMS_END_POINT;
@@ -24,19 +23,31 @@ public class SMSTransceiver {
 	private String UNREGISTER_RECEIVE_SMS_END_POINT;
 
 	public static void main(String[] args) {
-		SMSTransceiver lTranceiver = SMSTransceiver.getInstance();
+		// Instantiate and set endpoints
+		SMSTransceiver lTranceiver = new SMSTransceiver();
 		lTranceiver.setSMSEndPoints("http://localhost:8080/api/send",
 				"http://localhost:8080/api/registercallback",
 				"http://localhost:8080/api/unregistercallback");
 
+		// OR Instantiate by passing host.
+		// SMSTransceiver lTranceiver = new SMSTransceiver("http://localhost:8080");
+		
 		lTranceiver.registerReceieveSMSCallbackURL("Logger",
 				"http://localhost:8080/api/log",
 				MessageCallback.CALL_BACK_HTTP_METHOD_POST, new String[] {
 						"100", "200" });
 	}
 
-	private SMSTransceiver() {
+	public SMSTransceiver() {
 		httpClient = new DefaultHttpClient();
+	}
+
+	public SMSTransceiver(String aHost) {
+		this();
+
+		SEND_SMS_END_POINT = aHost + "/api/send";
+		RECEIVE_SMS_END_POINT = aHost = "/api/registercallback";
+		UNREGISTER_RECEIVE_SMS_END_POINT = "/api/unregistercallback";
 	}
 
 	public void setSMSEndPoints(String aSendEndPoint,
@@ -112,14 +123,6 @@ public class SMSTransceiver {
 		lRequestJSON.put("response", lResponseBody);
 
 		return lRequestJSON.toJSONString();
-	}
-
-	public synchronized static SMSTransceiver getInstance() {
-		if (instance == null) {
-			instance = new SMSTransceiver();
-		}
-
-		return instance;
 	}
 
 	public String sendSMS(String aMsg, String aFromNumber, String aToNumber) {
