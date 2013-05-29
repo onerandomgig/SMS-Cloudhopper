@@ -47,6 +47,12 @@
 		<property name="smsCallbackService" ref="smsCallbackService"></property>
 	</bean>
 
+	<bean id="securityInterceptor" name="securityInterceptor"
+		class="com.peoplecloud.smpp.api.RestSecurityInterceptor">
+	    
+		<property name="userDao" ref="userDao"></property>
+	</bean>
+	
 	<!-- Database Services -->
 	<bean id="dbPersistanceService" class="com.peoplecloud.smpp.service.MessagePersistanceService">
 		<property name="msgDAO" ref="msgDAO"></property>
@@ -56,6 +62,7 @@
 	</bean>
 	
 	<!-- Data Access Objects -->
+	<bean id="userDao" class="com.peoplecloud.smpp.dao.UserDAO"></bean>
 	<bean id="msgDAO" class="com.peoplecloud.smpp.dao.MessageDAO"></bean>
 	<bean id="callbackDAO" class="com.peoplecloud.smpp.dao.SMSCallbackDAO"></bean>
 </beans>

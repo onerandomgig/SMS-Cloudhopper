@@ -1,6 +1,5 @@
 package com.peoplecloud.smpp.cloudhopper;
 
-import com.cloudhopper.commons.charset.CharsetUtil;
 import com.cloudhopper.commons.util.windowing.WindowFuture;
 import com.cloudhopper.smpp.SmppConstants;
 import com.cloudhopper.smpp.SmppSessionConfiguration;
@@ -18,6 +17,7 @@ import com.cloudhopper.smpp.pdu.SubmitSm;
 import com.cloudhopper.smpp.pdu.SubmitSmResp;
 import com.peoplecloud.smpp.api.SMSMessageListener;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -46,14 +46,6 @@ public class SMPPClient {
 	private DefaultSmppClient clientBootstrap;
 
 	private List<SMSMessageListener> listOfMessageListeners;
-
-	public static void main(String[] args) throws Exception {
-		SMPPClient lSMPPClient = new SMPPClient(getDefaultProperties());
-		lSMPPClient.initialize();
-
-		System.out.println("Usage:: Msg, From, To");
-		lSMPPClient.sendSMSMessage(args[0], args[1], args[2]);
-	}
 
 	public SMPPClient(Properties aProps) {
 		configProperties = aProps;
@@ -170,8 +162,7 @@ public class SMPPClient {
 
 	public String sendSMSMessage(String aMessage, String aSentFromNumber,
 			String aSendToNumber) {
-		byte[] textBytes = CharsetUtil.encode(aMessage,
-				CharsetUtil.CHARSET_UTF_8);
+		byte[] textBytes = aMessage.getBytes(Charset.forName("UTF-8"));
 
 		try {
 			SubmitSm submitMsg = new SubmitSm();

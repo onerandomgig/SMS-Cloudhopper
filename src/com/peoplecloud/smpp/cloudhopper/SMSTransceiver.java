@@ -1,5 +1,6 @@
 package com.peoplecloud.smpp.cloudhopper;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,46 +19,42 @@ import com.peoplecloud.smpp.persistable.vo.MessageCallback;
 public class SMSTransceiver {
 	private DefaultHttpClient httpClient;
 
+	private String USER;
+	private String PASSWORD;
+
 	private String SEND_SMS_END_POINT;
 	private String RECEIVE_SMS_END_POINT;
 	private String UNREGISTER_RECEIVE_SMS_END_POINT;
 
 	public static void main(String[] args) {
-		// Instantiate and set endpoints
-		// SMSTransceiver lTranceiver = new SMSTransceiver();
-		// lTranceiver.setSMSEndPoints("http://localhost:8080/api/send",
-		// "http://localhost:8080/api/registercallback",
-		// "http://localhost:8080/api/unregistercallback");
-
-		// OR Instantiate by passing host.
 		SMSTransceiver lTranceiver = new SMSTransceiver(
-				"http://msg2.zenithss.com");
+				"http://localhost:8080", "{user name here}", "{password here}");
 
-		String notificatinResponse = lTranceiver
-				.registerReceieveSMSCallbackURL("PMT",
-						"http://web2.zenithss.com/scmppush/sms",
+		String notificationResponsePost = lTranceiver
+				.registerReceieveSMSCallbackURL("LOGGER",
+						"http://localhost:8080/api/log",
 						MessageCallback.CALL_BACK_HTTP_METHOD_POST,
-						new String[] { "200" });
-		System.out.println("Notification has started: " + notificatinResponse);
+						new String[] { "100" });
+
+		String notificationResponseGet = lTranceiver
+				.registerReceieveSMSCallbackURL("LOGGER",
+						"http://localhost:8080/api/log",
+						MessageCallback.CALL_BACK_HTTP_METHOD_GET,
+						new String[] { "100" });
+
+		System.out.println("Notification has started: "
+				+ notificationResponsePost + ", " + notificationResponseGet);
 	}
 
-	public SMSTransceiver() {
+	public SMSTransceiver(String aHost, String aUserName, String aPassword) {
 		httpClient = new DefaultHttpClient();
-	}
-
-	public SMSTransceiver(String aHost) {
-		this();
 
 		SEND_SMS_END_POINT = aHost + "/api/send";
 		RECEIVE_SMS_END_POINT = aHost + "/api/registercallback";
 		UNREGISTER_RECEIVE_SMS_END_POINT = aHost + "/api/unregistercallback";
-	}
 
-	public void setSMSEndPoints(String aSendEndPoint,
-			String aRegisterReceiverEndPoint, String aUnregisterReceiverEndPoint) {
-		SEND_SMS_END_POINT = aSendEndPoint;
-		RECEIVE_SMS_END_POINT = aRegisterReceiverEndPoint;
-		UNREGISTER_RECEIVE_SMS_END_POINT = aUnregisterReceiverEndPoint;
+		USER = aUserName;
+		PASSWORD = aPassword;
 	}
 
 	public String unregisterSMSCallbackURL(String aAppName,
@@ -76,12 +73,16 @@ public class SMSTransceiver {
 			nvps.add(new BasicNameValuePair("unregisterParams", lRequestJSON
 					.toJSONString()));
 
-			httpost.setEntity(new UrlEncodedFormEntity(nvps, "utf-8"));
+			httpost.setEntity(new UrlEncodedFormEntity(nvps, Charset
+					.forName("UTF-16")));
+
+			httpost.setHeader("auth-user", USER);
+			httpost.setHeader("auth-password", PASSWORD);
 
 			ResponseHandler<String> lResponseHandler = new BasicResponseHandler();
 			lResponseBody = httpClient.execute(httpost, lResponseHandler);
 		} catch (Exception ex) {
-			ex.printStackTrace();
+			lRequestJSON.put("responsestatus", ex.getMessage());
 		}
 
 		lRequestJSON.put("response", lResponseBody);
@@ -115,12 +116,16 @@ public class SMSTransceiver {
 			nvps.add(new BasicNameValuePair("registerParams", lRequestJSON
 					.toJSONString()));
 
-			httpost.setEntity(new UrlEncodedFormEntity(nvps, "utf-8"));
+			httpost.setHeader("auth-user", USER);
+			httpost.setHeader("auth-password", PASSWORD);
+
+			httpost.setEntity(new UrlEncodedFormEntity(nvps, Charset
+					.forName("UTF-16")));
 
 			ResponseHandler<String> lResponseHandler = new BasicResponseHandler();
 			lResponseBody = httpClient.execute(httpost, lResponseHandler);
 		} catch (Exception ex) {
-			ex.printStackTrace();
+			lRequestJSON.put("responsestatus", ex.getMessage());
 		}
 
 		lRequestJSON.put("response", lResponseBody);
@@ -143,12 +148,16 @@ public class SMSTransceiver {
 			nvps.add(new BasicNameValuePair("from", aFromNumber));
 			nvps.add(new BasicNameValuePair("to", aToNumber));
 
-			httpost.setEntity(new UrlEncodedFormEntity(nvps, "utf-8"));
+			httpost.setHeader("auth-user", USER);
+			httpost.setHeader("auth-password", PASSWORD);
+
+			httpost.setEntity(new UrlEncodedFormEntity(nvps, Charset
+					.forName("UTF-16")));
 
 			ResponseHandler<String> lResponseHandler = new BasicResponseHandler();
 			lResponseBody = httpClient.execute(httpost, lResponseHandler);
 		} catch (Exception ex) {
-			ex.printStackTrace();
+			lRequestJSON.put("responsestatus", ex.getMessage());
 		}
 
 		lRequestJSON.put("response", lResponseBody);

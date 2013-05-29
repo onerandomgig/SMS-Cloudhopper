@@ -1,6 +1,7 @@
 package com.peoplecloud.smpp.api;
 
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,6 +19,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
@@ -35,6 +37,7 @@ import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.cloudhopper.commons.charset.CharsetUtil;
 import com.peoplecloud.smpp.cloudhopper.SMPPClient;
 import com.peoplecloud.smpp.persistable.vo.Message;
 import com.peoplecloud.smpp.persistable.vo.MessageCallback;
@@ -46,7 +49,6 @@ import com.peoplecloud.smpp.service.MessagePersistanceService;
 public class SMSRestAPI implements SMSMessageListener {
 	private static final Logger logger = LoggerFactory
 			.getLogger(SMSRestAPI.class);
-
 	private String name;
 	private HttpClient httpClient;
 	private SMPPClient smppClient;
@@ -266,42 +268,83 @@ public class SMSRestAPI implements SMSMessageListener {
 	@POST
 	@Path("/log")
 	@Produces("application/json")
-	public Response log(@FormParam("msg") String aMsg,
+	public Response log(@FormParam("messageBody") String aMsg,
 			@FormParam("shortcode") String aShortCodeNum,
 			@FormParam("callbackurl") String aCallbackURL,
-			@FormParam("appname") String aAppName) throws URISyntaxException {
+			@FormParam("appname") String aAppName,
+			@FormParam("cellPhoneNumber") String aFromNumber,
+			@FormParam("dateOfMessage") String aDate) throws URISyntaxException {
 
 		JSONObject lRequestJSON = new JSONObject();
-		lRequestJSON.put("msg", aMsg);
+		lRequestJSON.put("messageBody", aMsg);
 		lRequestJSON.put("shortcode", aShortCodeNum);
 		lRequestJSON.put("callbackurl", aCallbackURL);
 		lRequestJSON.put("appname", aAppName);
+		lRequestJSON.put("cellPhoneNumber", aFromNumber);
+		lRequestJSON.put("dateOfMessage", aDate);
 
 		if (logger.isDebugEnabled()) {
-			logger.debug("Log Request: " + lRequestJSON.toJSONString());
+			logger.debug("Log Request POST: " + lRequestJSON.toJSONString());
+		}
+
+		return Response.status(Status.OK).entity(lRequestJSON).build();
+	}
+
+	@GET
+	@Path("/log")
+	@Produces("application/json")
+	public Response requestLog(@QueryParam("messageBody") String aMsg,
+			@QueryParam("shortcode") String aShortCodeNum,
+			@QueryParam("callbackurl") String aCallbackURL,
+			@QueryParam("appname") String aAppName,
+			@QueryParam("cellPhoneNumber") String aFromNumber,
+			@QueryParam("dateOfMessage") String aDate)
+			throws URISyntaxException {
+
+		JSONObject lRequestJSON = new JSONObject();
+		lRequestJSON.put("messageBody", aMsg);
+		lRequestJSON.put("shortcode", aShortCodeNum);
+		lRequestJSON.put("callbackurl", aCallbackURL);
+		lRequestJSON.put("appname", aAppName);
+		lRequestJSON.put("cellPhoneNumber", aFromNumber);
+		lRequestJSON.put("dateOfMessage", aDate);
+
+		if (logger.isDebugEnabled()) {
+			logger.debug("Log Request GET: " + lRequestJSON.toJSONString());
 		}
 
 		return Response.status(Status.OK).entity(lRequestJSON).build();
 	}
 
 	public Response requestForwardMessage(String aMsg, String aShortCode,
-			String aCallbackURL, String aAppName) throws URISyntaxException {
+			String aFromNumber, String aCallbackURL, String aAppName)
+			throws URISyntaxException {
 
 		JSONObject lRequestJSON = new JSONObject();
-		lRequestJSON.put("msg", aMsg);
-		lRequestJSON.put("shortcode", aShortCode);
-		lRequestJSON.put("callbackurl", aCallbackURL);
-		lRequestJSON.put("appname", aAppName);
-
-		if (logger.isDebugEnabled()) {
-			logger.debug("Forward Msg via HTTP GET: "
-					+ lRequestJSON.toJSONString());
-		}
-
 		String lResponseBody = "";
 		try {
-			HttpGet httpGet = new HttpGet(aCallbackURL + "?message=" + aMsg
-					+ "&shortcode=" + aShortCode + "&app=" + aAppName);
+			String lDate = DateFormatUtils.ISO_DATETIME_FORMAT
+					.format(new Date());
+			lRequestJSON.put("messageBody", aMsg);
+			lRequestJSON.put("shortcode", aShortCode);
+			lRequestJSON.put("appname", aAppName);
+			lRequestJSON.put("cellPhoneNumber", aFromNumber);
+			lRequestJSON.put("dateOfMessage", lDate);
+
+			String lGetURL = aCallbackURL + "?messageBody="
+					+ java.net.URLEncoder.encode(aMsg, "UTF-8") + "&shortcode="
+					+ aShortCode + "&appname=" + aAppName + "&callbackurl="
+					+ java.net.URLEncoder.encode(aCallbackURL, "UTF-8")
+					+ "&cellPhoneNumber=" + aFromNumber + "&dateOfMessage="
+					+ lDate;
+			lRequestJSON.put("callbackurl", lGetURL);
+
+			if (logger.isDebugEnabled()) {
+				logger.debug("Forward Msg via HTTP GET: "
+						+ lRequestJSON.toJSONString());
+			}
+
+			HttpGet httpGet = new HttpGet(lGetURL);
 
 			ResponseHandler<String> lResponseHandler = new BasicResponseHandler();
 			lResponseBody = httpClient.execute(httpGet, lResponseHandler);
@@ -319,13 +362,17 @@ public class SMSRestAPI implements SMSMessageListener {
 	}
 
 	public Response forwardMessage(String aMsg, String aShortCodeNum,
-			String aCallbackURL, String aAppName) throws URISyntaxException {
+			String aFromNumber, String aCallbackURL, String aAppName)
+			throws URISyntaxException {
 
+		String lDate = DateFormatUtils.ISO_DATETIME_FORMAT.format(new Date());
 		JSONObject lRequestJSON = new JSONObject();
-		lRequestJSON.put("msg", aMsg);
+		lRequestJSON.put("messageBody", aMsg);
 		lRequestJSON.put("shortcode", aShortCodeNum);
 		lRequestJSON.put("callbackurl", aCallbackURL);
 		lRequestJSON.put("appname", aAppName);
+		lRequestJSON.put("cellPhoneNumber", aFromNumber);
+		lRequestJSON.put("dateOfMessage", lDate);
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Forward Msg via HTTP POST: "
@@ -337,11 +384,15 @@ public class SMSRestAPI implements SMSMessageListener {
 
 		try {
 			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-			nvps.add(new BasicNameValuePair("message", aMsg));
+			nvps.add(new BasicNameValuePair("messageBody", aMsg));
 			nvps.add(new BasicNameValuePair("shortcode", aShortCodeNum));
-			nvps.add(new BasicNameValuePair("app", aAppName));
+			nvps.add(new BasicNameValuePair("appname", aAppName));
+			nvps.add(new BasicNameValuePair("callbackurl", aCallbackURL));
+			nvps.add(new BasicNameValuePair("cellPhoneNumber", aFromNumber));
+			nvps.add(new BasicNameValuePair("dateOfMessage", lDate));
 
-			httpost.setEntity(new UrlEncodedFormEntity(nvps, "utf-8"));
+			httpost.setEntity(new UrlEncodedFormEntity(nvps, Charset
+					.forName("UTF-8")));
 
 			ResponseHandler<String> lResponseHandler = new BasicResponseHandler();
 			lResponseBody = httpClient.execute(httpost, lResponseHandler);
@@ -360,8 +411,12 @@ public class SMSRestAPI implements SMSMessageListener {
 
 	private Response sendSMS(String aMsg, String aSendFromNumber,
 			String aSendToNumber) {
+
+		String lMsg = new String(CharsetUtil.encode(aMsg,
+				CharsetUtil.NAME_MODIFIED_UTF8));
+
 		JSONObject lRequestJSON = new JSONObject();
-		lRequestJSON.put("msg", aMsg);
+		lRequestJSON.put("msg", lMsg);
 		lRequestJSON.put("from", aSendFromNumber);
 		lRequestJSON.put("to", aSendToNumber);
 
@@ -370,7 +425,7 @@ public class SMSRestAPI implements SMSMessageListener {
 		}
 
 		// Save message to database.
-		persistMessageToDB(aMsg, aSendFromNumber, aSendToNumber, Message.MT);
+		persistMessageToDB(lMsg, aSendFromNumber, aSendToNumber, Message.MT);
 
 		String lSentMsg = smppClient.sendSMSMessage(aMsg, aSendFromNumber,
 				aSendToNumber);
@@ -385,8 +440,12 @@ public class SMSRestAPI implements SMSMessageListener {
 
 	public void notify(final String aMessage, final String aFromNumber,
 			final String aToNumber) {
+
+		final String lMsg = new String(aMessage.getBytes(Charset
+				.forName("UTF-8")), Charset.forName("UTF-8"));
+
 		JSONObject lRequestJSON = new JSONObject();
-		lRequestJSON.put("msg", aMessage);
+		lRequestJSON.put("msg", lMsg);
 		lRequestJSON.put("from", aFromNumber);
 		lRequestJSON.put("to", aToNumber);
 
@@ -397,7 +456,7 @@ public class SMSRestAPI implements SMSMessageListener {
 
 		try {
 			// Save message to database.
-			persistMessageToDB(aMessage, aFromNumber, aToNumber, Message.MO);
+			persistMessageToDB(lMsg, aFromNumber, aToNumber, Message.MO);
 
 			// Invoke registered callback.
 			List<MessageCallback> lCallbacks = registeredListenersMap
@@ -413,10 +472,9 @@ public class SMSRestAPI implements SMSMessageListener {
 
 								Response lResp = null;
 								try {
-									lResp = requestForwardMessage(new String(
-											aMessage.getBytes(), "utf-8"),
-											aToNumber, lCallback
-													.getCallBackURL(),
+									lResp = requestForwardMessage(lMsg,
+											aToNumber, aFromNumber,
+											lCallback.getCallBackURL(),
 											lCallback.getAppName());
 
 									if (logger.isDebugEnabled()) {
@@ -436,7 +494,8 @@ public class SMSRestAPI implements SMSMessageListener {
 
 								Response lResp = null;
 								try {
-									lResp = forwardMessage(aMessage, aToNumber,
+									lResp = forwardMessage(lMsg, aToNumber,
+											aFromNumber,
 											lCallback.getCallBackURL(),
 											lCallback.getAppName());
 
