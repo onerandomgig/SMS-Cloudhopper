@@ -19,6 +19,7 @@ import com.peoplecloud.smpp.persistable.vo.MessageCallback;
 public class SMSTransceiver {
 	private DefaultHttpClient httpClient;
 
+	private String APP_NAME;
 	private String USER;
 	private String PASSWORD;
 
@@ -28,7 +29,8 @@ public class SMSTransceiver {
 
 	public static void main(String[] args) {
 		SMSTransceiver lTranceiver = new SMSTransceiver(
-				"http://localhost:8080", "{user name here}", "{password here}");
+				"{application name here}", "http://localhost:8080",
+				"{user name here}", "{password here}");
 
 		String notificationResponsePost = lTranceiver
 				.registerReceieveSMSCallbackURL("LOGGER",
@@ -46,9 +48,11 @@ public class SMSTransceiver {
 				+ notificationResponsePost + ", " + notificationResponseGet);
 	}
 
-	public SMSTransceiver(String aHost, String aUserName, String aPassword) {
+	public SMSTransceiver(String aAppName, String aHost, String aUserName,
+			String aPassword) {
 		httpClient = new DefaultHttpClient();
 
+		APP_NAME = aAppName;
 		SEND_SMS_END_POINT = aHost + "/api/send";
 		RECEIVE_SMS_END_POINT = aHost + "/api/registercallback";
 		UNREGISTER_RECEIVE_SMS_END_POINT = aHost + "/api/unregistercallback";
@@ -135,6 +139,7 @@ public class SMSTransceiver {
 
 	public String sendSMS(String aMsg, String aFromNumber, String aToNumber) {
 		JSONObject lRequestJSON = new JSONObject();
+		lRequestJSON.put("appname", APP_NAME);
 		lRequestJSON.put("msg", aMsg);
 		lRequestJSON.put("from", aFromNumber);
 		lRequestJSON.put("to", aToNumber);
@@ -144,6 +149,7 @@ public class SMSTransceiver {
 
 		try {
 			List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+			nvps.add(new BasicNameValuePair("appname", APP_NAME));
 			nvps.add(new BasicNameValuePair("message", aMsg));
 			nvps.add(new BasicNameValuePair("from", aFromNumber));
 			nvps.add(new BasicNameValuePair("to", aToNumber));

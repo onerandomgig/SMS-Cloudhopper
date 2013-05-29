@@ -38,6 +38,9 @@ public class Message {
 	@Basic
 	private String messageType;
 
+	@Basic
+	private String application;
+
 	public long getId() {
 		return id;
 	}
@@ -92,5 +95,13 @@ public class Message {
 
 	public void setSentDate(Date sentDate) {
 		this.sentDate = sentDate;
+	}
+
+	public String getApplication() {
+		return application;
+	}
+
+	public void setApplication(String application) {
+		this.application = application;
 	}
 }

@@ -250,19 +250,21 @@ public class SMSRestAPI implements SMSMessageListener {
 	@GET
 	@Path("/send")
 	@Produces("application/json")
-	public Response requestSendMessage(@QueryParam("message") String aMsg,
+	public Response requestSendMessage(@QueryParam("appname") String aAppName,
+			@QueryParam("message") String aMsg,
 			@QueryParam("from") String aSendFromNumber,
 			@QueryParam("to") String aSendToNumber) throws URISyntaxException {
-		return sendSMS(aMsg, aSendFromNumber, aSendToNumber);
+		return sendSMS(aMsg, aSendFromNumber, aSendToNumber, aAppName);
 	}
 
 	@POST
 	@Path("/send")
 	@Produces("application/json")
-	public Response sendMessage(@FormParam("message") String aMsg,
+	public Response sendMessage(@FormParam("appname") String aAppName,
+			@FormParam("message") String aMsg,
 			@FormParam("from") String aSendFromNumber,
 			@FormParam("to") String aSendToNumber) throws URISyntaxException {
-		return sendSMS(aMsg, aSendFromNumber, aSendToNumber);
+		return sendSMS(aMsg, aSendFromNumber, aSendToNumber, aAppName);
 	}
 
 	@POST
@@ -410,7 +412,7 @@ public class SMSRestAPI implements SMSMessageListener {
 	}
 
 	private Response sendSMS(String aMsg, String aSendFromNumber,
-			String aSendToNumber) {
+			String aSendToNumber, String aApplication) {
 
 		String lMsg = new String(CharsetUtil.encode(aMsg,
 				CharsetUtil.NAME_MODIFIED_UTF8));
@@ -425,7 +427,8 @@ public class SMSRestAPI implements SMSMessageListener {
 		}
 
 		// Save message to database.
-		persistMessageToDB(lMsg, aSendFromNumber, aSendToNumber, Message.MT);
+		persistMessageToDB(lMsg, aSendFromNumber, aSendToNumber, Message.MT,
+				aApplication);
 
 		String lSentMsg = smppClient.sendSMSMessage(aMsg, aSendFromNumber,
 				aSendToNumber);
@@ -455,9 +458,6 @@ public class SMSRestAPI implements SMSMessageListener {
 		}
 
 		try {
-			// Save message to database.
-			persistMessageToDB(lMsg, aFromNumber, aToNumber, Message.MO);
-
 			// Invoke registered callback.
 			List<MessageCallback> lCallbacks = registeredListenersMap
 					.get(aToNumber);
@@ -472,6 +472,11 @@ public class SMSRestAPI implements SMSMessageListener {
 
 								Response lResp = null;
 								try {
+									// Save message to database.
+									persistMessageToDB(lMsg, aFromNumber,
+											aToNumber, Message.MO,
+											lCallback.getAppName());
+
 									lResp = requestForwardMessage(lMsg,
 											aToNumber, aFromNumber,
 											lCallback.getCallBackURL(),
@@ -494,6 +499,11 @@ public class SMSRestAPI implements SMSMessageListener {
 
 								Response lResp = null;
 								try {
+									// Save message to database.
+									persistMessageToDB(lMsg, aFromNumber,
+											aToNumber, Message.MO,
+											lCallback.getAppName());
+
 									lResp = forwardMessage(lMsg, aToNumber,
 											aFromNumber,
 											lCallback.getCallBackURL(),
@@ -519,7 +529,7 @@ public class SMSRestAPI implements SMSMessageListener {
 	}
 
 	private void persistMessageToDB(String aMessage, String aFromNumber,
-			String aToNumber, String aMessageType) {
+			String aToNumber, String aMessageType, String aApplication) {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Persisting message to database: [" + aMessage + ", "
 					+ aFromNumber + ", " + aToNumber + ", " + aMessageType
@@ -530,6 +540,7 @@ public class SMSRestAPI implements SMSMessageListener {
 		msg.setMessage(aMessage);
 		msg.setFromNumber(aFromNumber);
 		msg.setToNumber(aToNumber);
+		msg.setApplication(aApplication);
 
 		if (aMessageType.equals(Message.MO)) {
 			msg.setReceivedDate(new Date());
