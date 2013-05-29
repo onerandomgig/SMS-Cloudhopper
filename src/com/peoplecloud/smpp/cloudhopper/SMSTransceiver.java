@@ -24,18 +24,21 @@ public class SMSTransceiver {
 
 	public static void main(String[] args) {
 		// Instantiate and set endpoints
-		SMSTransceiver lTranceiver = new SMSTransceiver();
-		lTranceiver.setSMSEndPoints("http://localhost:8080/api/send",
-				"http://localhost:8080/api/registercallback",
-				"http://localhost:8080/api/unregistercallback");
+		// SMSTransceiver lTranceiver = new SMSTransceiver();
+		// lTranceiver.setSMSEndPoints("http://localhost:8080/api/send",
+		// "http://localhost:8080/api/registercallback",
+		// "http://localhost:8080/api/unregistercallback");
 
 		// OR Instantiate by passing host.
-		// SMSTransceiver lTranceiver = new SMSTransceiver("http://localhost:8080");
-		
-		lTranceiver.registerReceieveSMSCallbackURL("Logger",
-				"http://localhost:8080/api/log",
-				MessageCallback.CALL_BACK_HTTP_METHOD_POST, new String[] {
-						"100", "200" });
+		SMSTransceiver lTranceiver = new SMSTransceiver(
+				"http://msg2.zenithss.com");
+
+		String notificatinResponse = lTranceiver
+				.registerReceieveSMSCallbackURL("PMT",
+						"http://web2.zenithss.com/scmppush/sms",
+						MessageCallback.CALL_BACK_HTTP_METHOD_POST,
+						new String[] { "200" });
+		System.out.println("Notification has started: " + notificatinResponse);
 	}
 
 	public SMSTransceiver() {
@@ -46,8 +49,8 @@ public class SMSTransceiver {
 		this();
 
 		SEND_SMS_END_POINT = aHost + "/api/send";
-		RECEIVE_SMS_END_POINT = aHost = "/api/registercallback";
-		UNREGISTER_RECEIVE_SMS_END_POINT = "/api/unregistercallback";
+		RECEIVE_SMS_END_POINT = aHost + "/api/registercallback";
+		UNREGISTER_RECEIVE_SMS_END_POINT = aHost + "/api/unregistercallback";
 	}
 
 	public void setSMSEndPoints(String aSendEndPoint,
