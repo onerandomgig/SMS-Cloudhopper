@@ -444,8 +444,9 @@ public class SMSRestAPI implements SMSMessageListener {
 	public void notify(final String aMessage, final String aFromNumber,
 			final String aToNumber) {
 
-		final String lMsg = new String(aMessage.getBytes(Charset
-				.forName("UTF-8")), Charset.forName("UTF-8"));
+		final String lMsg = aMessage;
+		// new String(aMessage.getBytes(Charset
+		// .forName("UTF-8")), Charset.forName("UTF-8"));
 
 		JSONObject lRequestJSON = new JSONObject();
 		lRequestJSON.put("msg", lMsg);

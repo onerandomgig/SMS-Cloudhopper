@@ -1,5 +1,6 @@
 package com.peoplecloud.smpp.cloudhopper;
 
+import com.cloudhopper.commons.charset.CharsetUtil;
 import com.cloudhopper.commons.util.windowing.WindowFuture;
 import com.cloudhopper.smpp.SmppConstants;
 import com.cloudhopper.smpp.SmppSessionConfiguration;
@@ -17,7 +18,7 @@ import com.cloudhopper.smpp.pdu.SubmitSm;
 import com.cloudhopper.smpp.pdu.SubmitSmResp;
 import com.peoplecloud.smpp.api.SMSMessageListener;
 
-import java.nio.charset.Charset;
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -111,11 +112,40 @@ public class SMPPClient {
 			DefaultSmppSessionHandler {
 
 		private List<SMSMessageListener> listOfListeners;
+		private SMPPClient thisClient;
 
-		public ClientSmppSessionHandler(
+		public ClientSmppSessionHandler(SMPPClient aClient,
 				List<SMSMessageListener> aListOfListeners) {
 			super(logger);
+			thisClient = aClient;
 			listOfListeners = aListOfListeners;
+		}
+
+		public void fireChannelUnexpectedlyClosed() {
+			logger.error("Default handling is to discard an unexpected channel closed");
+
+			try {
+				thisClient.shutdown();
+				logger.error("Shutting down SMPP Connection. Will reinitalize in 60 seconds.");
+				Thread.sleep(60000);
+				thisClient.initialize();
+			} catch (Exception ex) {
+				logger.error(
+						"Failed to reinitialize. Channel was closed unexpectedly. SMPP Client will not work. Please **RESTART**",
+						ex);
+			}
+		}
+
+		@Override
+		public void fireUnknownThrowable(Throwable t) {
+			if (t instanceof ClosedChannelException) {
+				logger.warn("Unknown throwable received, but it was a ClosedChannelException, calling fireChannelUnexpectedlyClosed instead");
+				fireChannelUnexpectedlyClosed();
+			} else {
+				logger.warn(
+						"Default handling is to discard an unknown throwable:",
+						t);
+			}
 		}
 
 		@Override
@@ -143,7 +173,8 @@ public class SMPPClient {
 				Address sourceAddress = mo.getSourceAddress();
 				Address destAddress = mo.getDestAddress();
 				byte[] shortMessage = mo.getShortMessage();
-				String sms = new String(shortMessage);
+				String sms = CharsetUtil.decode(shortMessage,
+						CharsetUtil.CHARSET_ISO_8859_1);
 
 				if (logger.isDebugEnabled()) {
 					logger.debug("Received Message is :: " + sms + ", from :: "
@@ -162,7 +193,8 @@ public class SMPPClient {
 
 	public String sendSMSMessage(String aMessage, String aSentFromNumber,
 			String aSendToNumber) {
-		byte[] textBytes = aMessage.getBytes(Charset.forName("UTF-8"));
+		byte[] textBytes = CharsetUtil.encode(aMessage,
+				CharsetUtil.CHARSET_ISO_8859_1);
 
 		try {
 			SubmitSm submitMsg = new SubmitSm();
@@ -190,7 +222,7 @@ public class SMPPClient {
 		} catch (Exception ex) {
 			logger.error("Exception sending message [Msg, From, To] :: ["
 					+ aMessage + ", " + aSentFromNumber + ", " + aSendToNumber
-					+ "]");
+					+ "]", ex);
 		}
 
 		logger.debug("Message **NOT** sent to " + aSendToNumber);
@@ -213,7 +245,7 @@ public class SMPPClient {
 
 	public void bindSMPPSession() {
 		DefaultSmppSessionHandler sessionHandler = new ClientSmppSessionHandler(
-				listOfMessageListeners);
+				this, listOfMessageListeners);
 
 		SmppSessionConfiguration smppSessionConfig = new SmppSessionConfiguration();
 		smppSessionConfig.setWindowSize(1);

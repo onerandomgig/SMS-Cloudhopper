@@ -13,8 +13,6 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.json.simple.JSONObject;
 
-import com.peoplecloud.smpp.persistable.vo.MessageCallback;
-
 @SuppressWarnings("unchecked")
 public class SMSTransceiver {
 	private DefaultHttpClient httpClient;
@@ -29,23 +27,25 @@ public class SMSTransceiver {
 
 	public static void main(String[] args) {
 		SMSTransceiver lTranceiver = new SMSTransceiver(
-				"{application name here}", "http://localhost:8080",
-				"{user name here}", "{password here}");
+				"PMT", "http://msg2.zenithss.com",
+				"zenith.smpp", "zenith!@#$");
 
-		String notificationResponsePost = lTranceiver
-				.registerReceieveSMSCallbackURL("LOGGER",
-						"http://localhost:8080/api/log",
-						MessageCallback.CALL_BACK_HTTP_METHOD_POST,
-						new String[] { "100" });
-
-		String notificationResponseGet = lTranceiver
-				.registerReceieveSMSCallbackURL("LOGGER",
-						"http://localhost:8080/api/log",
-						MessageCallback.CALL_BACK_HTTP_METHOD_GET,
-						new String[] { "100" });
-
-		System.out.println("Notification has started: "
-				+ notificationResponsePost + ", " + notificationResponseGet);
+		lTranceiver.sendSMS("Vikram, SMPP send and receive is working now", "100", "4168390166");
+		
+//		String notificationResponsePost = lTranceiver
+//				.registerReceieveSMSCallbackURL("LOGGER",
+//						"http://localhost:8080/api/log",
+//						MessageCallback.CALL_BACK_HTTP_METHOD_POST,
+//						new String[] { "100" });
+//
+//		String notificationResponseGet = lTranceiver
+//				.registerReceieveSMSCallbackURL("LOGGER",
+//						"http://localhost:8080/api/log",
+//						MessageCallback.CALL_BACK_HTTP_METHOD_GET,
+//						new String[] { "100" });
+//
+//		System.out.println("Notification has started: "
+//				+ notificationResponsePost + ", " + notificationResponseGet);
 	}
 
 	public SMSTransceiver(String aAppName, String aHost, String aUserName,
@@ -140,7 +140,7 @@ public class SMSTransceiver {
 	public String sendSMS(String aMsg, String aFromNumber, String aToNumber) {
 		JSONObject lRequestJSON = new JSONObject();
 		lRequestJSON.put("appname", APP_NAME);
-		lRequestJSON.put("msg", aMsg);
+		lRequestJSON.put("message", aMsg);
 		lRequestJSON.put("from", aFromNumber);
 		lRequestJSON.put("to", aToNumber);
 
