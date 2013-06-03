@@ -124,16 +124,22 @@ public class SMPPClient {
 		public void fireChannelUnexpectedlyClosed() {
 			logger.error("Default handling is to discard an unexpected channel closed");
 
-			try {
-				thisClient.shutdown();
-				logger.error("Shutting down SMPP Connection. Will reinitalize in 60 seconds.");
-				Thread.sleep(60000);
-				thisClient.initialize();
-			} catch (Exception ex) {
-				logger.error(
-						"Failed to reinitialize. Channel was closed unexpectedly. SMPP Client will not work. Please **RESTART**",
-						ex);
-			}
+			new Thread(new Runnable() {
+				public void run() {
+					try {
+						thisClient.shutdown();
+						logger.error("Shutting down SMPP Connection. Will reinitalize in 60 seconds.");
+						Thread.sleep(60000);
+						logger.error("Shutdown Complete. Will **REINITIALIZE** now.");
+						thisClient.initialize();
+					} catch (Exception ex) {
+						logger.error(
+								"Failed to reinitialize. Channel was closed unexpectedly. SMPP Client will not work. Please **RESTART**",
+								ex);
+						System.exit(-1);
+					}
+				}
+			}).start();
 		}
 
 		@Override

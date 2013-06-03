@@ -426,13 +426,13 @@ public class SMSRestAPI implements SMSMessageListener {
 			logger.debug("Send Msg Request: " + lRequestJSON.toJSONString());
 		}
 
-		// Save message to database.
-		persistMessageToDB(lMsg, aSendFromNumber, aSendToNumber, Message.MT,
-				aApplication);
-
 		String lSentMsg = smppClient.sendSMSMessage(aMsg, aSendFromNumber,
 				aSendToNumber);
 		lRequestJSON.put("statusmsg", lSentMsg);
+
+		// Save message to database.
+		persistMessageToDB(lMsg, aSendFromNumber, aSendToNumber, Message.MT,
+				aApplication, lSentMsg);
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Send Msg Status: " + lRequestJSON.toJSONString());
@@ -465,19 +465,20 @@ public class SMSRestAPI implements SMSMessageListener {
 
 			if (lCallbacks != null) {
 				for (final MessageCallback lCallback : lCallbacks) {
+
 					if (lCallback.getCallbackMethod().equals(
 							MessageCallback.CALL_BACK_HTTP_METHOD_GET)) {
 
 						msgForwardExecutorService.execute(new Runnable() {
 							public void run() {
 
+								String lStatus = lCallback.getAppName()
+										+ ":"
+										+ lCallback.getCallBackURL()
+										+ ":"
+										+ MessageCallback.CALL_BACK_HTTP_METHOD_POST;
 								Response lResp = null;
 								try {
-									// Save message to database.
-									persistMessageToDB(lMsg, aFromNumber,
-											aToNumber, Message.MO,
-											lCallback.getAppName());
-
 									lResp = requestForwardMessage(lMsg,
 											aToNumber, aFromNumber,
 											lCallback.getCallBackURL(),
@@ -487,10 +488,21 @@ public class SMSRestAPI implements SMSMessageListener {
 										logger.debug("Message forwarded successfully to : "
 												+ lResp.getEntity().toString());
 									}
+
+									lStatus = lStatus + " ["
+											+ lResp.getStatus() + ":"
+											+ lResp.getEntity() + "]";
 								} catch (Exception ex) {
-									logger.error("Message could not be delivered successfully to : "
-											+ lResp.getEntity().toString());
+									lStatus = lStatus
+											+ " [Message could not be delivered successfully. Msg: "
+											+ ex.getMessage() + "]";
+									logger.error(lStatus, ex);
 								}
+
+								// Save message to database.
+								persistMessageToDB(lMsg, aFromNumber,
+										aToNumber, Message.MO,
+										lCallback.getAppName(), lStatus);
 							}
 						});
 					} else if (lCallback.getCallbackMethod().equals(
@@ -498,12 +510,13 @@ public class SMSRestAPI implements SMSMessageListener {
 						msgForwardExecutorService.execute(new Runnable() {
 							public void run() {
 
+								String lStatus = lCallback.getAppName()
+										+ ":"
+										+ lCallback.getCallBackURL()
+										+ ":"
+										+ MessageCallback.CALL_BACK_HTTP_METHOD_POST;
 								Response lResp = null;
 								try {
-									// Save message to database.
-									persistMessageToDB(lMsg, aFromNumber,
-											aToNumber, Message.MO,
-											lCallback.getAppName());
 
 									lResp = forwardMessage(lMsg, aToNumber,
 											aFromNumber,
@@ -514,10 +527,21 @@ public class SMSRestAPI implements SMSMessageListener {
 										logger.debug("Message forwarded successfully to : "
 												+ lResp.getEntity().toString());
 									}
+
+									lStatus = lStatus + " ["
+											+ lResp.getStatus() + ":"
+											+ lResp.getEntity() + "]";
 								} catch (Exception ex) {
-									logger.error("Message could not be delivered successfully to : "
-											+ lResp.getEntity().toString());
+									lStatus = lStatus
+											+ " [Message could not be delivered successfully. Msg: "
+											+ ex.getMessage() + "]";
+									logger.error(lStatus, ex);
 								}
+
+								// Save message to database.
+								persistMessageToDB(lMsg, aFromNumber,
+										aToNumber, Message.MO,
+										lCallback.getAppName(), lStatus);
 							}
 						});
 					}
@@ -530,11 +554,12 @@ public class SMSRestAPI implements SMSMessageListener {
 	}
 
 	private void persistMessageToDB(String aMessage, String aFromNumber,
-			String aToNumber, String aMessageType, String aApplication) {
+			String aToNumber, String aMessageType, String aApplication,
+			String aStatus) {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Persisting message to database: [" + aMessage + ", "
 					+ aFromNumber + ", " + aToNumber + ", " + aMessageType
-					+ "]");
+					+ ", " + aStatus + "]");
 		}
 
 		Message msg = new Message();
@@ -542,6 +567,7 @@ public class SMSRestAPI implements SMSMessageListener {
 		msg.setFromNumber(aFromNumber);
 		msg.setToNumber(aToNumber);
 		msg.setApplication(aApplication);
+		msg.setStatus(aStatus);
 
 		if (aMessageType.equals(Message.MO)) {
 			msg.setReceivedDate(new Date());

@@ -39,6 +39,9 @@ public class Message {
 	private String messageType;
 
 	@Basic
+	private String status;
+
+	@Basic
 	private String application;
 
 	public long getId() {
@@ -103,5 +106,13 @@ public class Message {
 
 	public void setApplication(String application) {
 		this.application = application;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
 	}
 }
