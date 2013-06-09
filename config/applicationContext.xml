@@ -31,7 +31,7 @@
 	<import resource="datasource.xml" />
 
 	<!-- SMPP bean -->
-	<bean id="smppClient" class="com.peoplecloud.smpp.cloudhopper.SMPPClient"
+	<bean id="messageRouter" class="com.peoplecloud.smpp.api.SMSMultipleSessionRouter"
 		init-method="initialize">
 		<constructor-arg ref="sysPropsResource"></constructor-arg>
 	</bean>
@@ -42,7 +42,7 @@
 
 	    <constructor-arg value="SMS REST API INTERFACE"></constructor-arg>
 	    
-		<property name="smppClient" ref="smppClient"></property>
+		<property name="messageRouter" ref="messageRouter"></property>
 		<property name="dbPersistanceService" ref="dbPersistanceService"></property>
 		<property name="smsCallbackService" ref="smsCallbackService"></property>
 	</bean>

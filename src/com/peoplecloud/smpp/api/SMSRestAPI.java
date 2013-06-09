@@ -38,7 +38,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.cloudhopper.commons.charset.CharsetUtil;
-import com.peoplecloud.smpp.cloudhopper.SMPPClient;
 import com.peoplecloud.smpp.persistable.vo.Message;
 import com.peoplecloud.smpp.persistable.vo.MessageCallback;
 import com.peoplecloud.smpp.service.SMSCallbackService;
@@ -51,7 +50,7 @@ public class SMSRestAPI implements SMSMessageListener {
 			.getLogger(SMSRestAPI.class);
 	private String name;
 	private HttpClient httpClient;
-	private SMPPClient smppClient;
+	private ISMSMessageRouter messageRouter;
 
 	private ExecutorService msgForwardExecutorService;
 	private MessagePersistanceService dbPersistanceService;
@@ -72,13 +71,13 @@ public class SMSRestAPI implements SMSMessageListener {
 		httpClient = new DefaultHttpClient(cxMgr);
 	}
 
-	public SMPPClient getSmppClient() {
-		return smppClient;
+	public ISMSMessageRouter getMessageRouter() {
+		return messageRouter;
 	}
 
-	public void setSmppClient(SMPPClient smppClient) {
-		this.smppClient = smppClient;
-		this.smppClient.registerListener(this);
+	public void setMessageRouter(ISMSMessageRouter messageRouter) {
+		this.messageRouter = messageRouter;
+		this.messageRouter.registerListener(this);
 	}
 
 	public void setHttpClient(HttpClient httpclient) {
@@ -426,13 +425,14 @@ public class SMSRestAPI implements SMSMessageListener {
 			logger.debug("Send Msg Request: " + lRequestJSON.toJSONString());
 		}
 
-		String lSentMsg = smppClient.sendSMSMessage(aMsg, aSendFromNumber,
+		String lSentMsg = messageRouter.sendSMS(aMsg, aSendFromNumber,
 				aSendToNumber);
 		lRequestJSON.put("statusmsg", lSentMsg);
 
 		// Save message to database.
 		persistMessageToDB(lMsg, aSendFromNumber, aSendToNumber, Message.MT,
-				aApplication, lSentMsg);
+				aApplication, lSentMsg,
+				messageRouter.getLastUserServerToSendMessage());
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Send Msg Status: " + lRequestJSON.toJSONString());
@@ -442,7 +442,7 @@ public class SMSRestAPI implements SMSMessageListener {
 	}
 
 	public void notify(final String aMessage, final String aFromNumber,
-			final String aToNumber) {
+			final String aToNumber, final String aSMPPSession) {
 
 		final String lMsg = aMessage;
 		// new String(aMessage.getBytes(Charset
@@ -452,6 +452,7 @@ public class SMSRestAPI implements SMSMessageListener {
 		lRequestJSON.put("msg", lMsg);
 		lRequestJSON.put("from", aFromNumber);
 		lRequestJSON.put("to", aToNumber);
+		lRequestJSON.put("messageFrom", aSMPPSession);
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Listener got notified :: "
@@ -502,7 +503,8 @@ public class SMSRestAPI implements SMSMessageListener {
 								// Save message to database.
 								persistMessageToDB(lMsg, aFromNumber,
 										aToNumber, Message.MO,
-										lCallback.getAppName(), lStatus);
+										lCallback.getAppName(), lStatus,
+										aSMPPSession);
 							}
 						});
 					} else if (lCallback.getCallbackMethod().equals(
@@ -541,7 +543,8 @@ public class SMSRestAPI implements SMSMessageListener {
 								// Save message to database.
 								persistMessageToDB(lMsg, aFromNumber,
 										aToNumber, Message.MO,
-										lCallback.getAppName(), lStatus);
+										lCallback.getAppName(), lStatus,
+										aSMPPSession);
 							}
 						});
 					}
@@ -555,7 +558,7 @@ public class SMSRestAPI implements SMSMessageListener {
 
 	private void persistMessageToDB(String aMessage, String aFromNumber,
 			String aToNumber, String aMessageType, String aApplication,
-			String aStatus) {
+			String aStatus, String aSMPPSession) {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Persisting message to database: [" + aMessage + ", "
 					+ aFromNumber + ", " + aToNumber + ", " + aMessageType
@@ -568,6 +571,7 @@ public class SMSRestAPI implements SMSMessageListener {
 		msg.setToNumber(aToNumber);
 		msg.setApplication(aApplication);
 		msg.setStatus(aStatus);
+		msg.setMessageServer(aSMPPSession);
 
 		if (aMessageType.equals(Message.MO)) {
 			msg.setReceivedDate(new Date());

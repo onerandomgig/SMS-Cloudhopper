@@ -46,9 +46,12 @@ public class SMPPClient {
 	private ScheduledThreadPoolExecutor monitorExecutor;
 	private DefaultSmppClient clientBootstrap;
 
+	private int sessionNum;
+
 	private List<SMSMessageListener> listOfMessageListeners;
 
-	public SMPPClient(Properties aProps) {
+	public SMPPClient(Properties aProps, int aSessionNum) {
+		sessionNum = aSessionNum;
 		configProperties = aProps;
 		listOfMessageListeners = new ArrayList<SMSMessageListener>();
 	}
@@ -189,7 +192,8 @@ public class SMPPClient {
 
 				for (SMSMessageListener lListener : listOfListeners) {
 					lListener.notify(sms, sourceAddress.getAddress(),
-							destAddress.getAddress());
+							destAddress.getAddress(),
+							thisClient.getClientName());
 				}
 			}
 
@@ -219,19 +223,21 @@ public class SMPPClient {
 
 			logger.debug("About to send message to " + aSendToNumber
 					+ ", Msg is :: " + aMessage + ", from :: "
-					+ aSentFromNumber);
+					+ aSentFromNumber + " using session " + sessionNum);
 
 			SubmitSmResp submitResp = smppSession.submit(submitMsg, 15000);
 			logger.debug("Message sent to " + aSendToNumber
-					+ " with message id " + submitResp.getMessageId());
+					+ " with message id " + submitResp.getMessageId()
+					+ " using session " + sessionNum);
 			return "Message ID - " + submitResp.getMessageId();
 		} catch (Exception ex) {
 			logger.error("Exception sending message [Msg, From, To] :: ["
 					+ aMessage + ", " + aSentFromNumber + ", " + aSendToNumber
-					+ "]", ex);
+					+ ", {Session Number: }" + sessionNum + "]", ex);
 		}
 
-		logger.debug("Message **NOT** sent to " + aSendToNumber);
+		logger.debug("Message **NOT** sent to " + aSendToNumber
+				+ " from {session number} " + sessionNum);
 		return "Message Not Submitted to " + aSendToNumber;
 	}
 
@@ -249,25 +255,33 @@ public class SMPPClient {
 		return listOfMessageListeners;
 	}
 
+	public String getClientName() {
+		return configProperties.getProperty("smsc.connection.name."
+				+ sessionNum);
+	}
+
 	public void bindSMPPSession() {
 		DefaultSmppSessionHandler sessionHandler = new ClientSmppSessionHandler(
 				this, listOfMessageListeners);
 
+		logger.info("Binding SMPP Session " + sessionNum + " ...");
+
 		SmppSessionConfiguration smppSessionConfig = new SmppSessionConfiguration();
 		smppSessionConfig.setWindowSize(1);
-		smppSessionConfig.setName("SMPP Session 1");
+		smppSessionConfig.setName(configProperties
+				.getProperty("smsc.connection.name." + sessionNum));
 		smppSessionConfig.setType(SmppBindType.TRANSCEIVER);
 		smppSessionConfig.setConnectTimeout(10000);
 		smppSessionConfig.getLoggingOptions().setLogBytes(true);
 
 		smppSessionConfig.setHost(configProperties
-				.getProperty("smsc.server.host"));
+				.getProperty("smsc.server.host." + sessionNum));
 		smppSessionConfig.setPort(Integer.parseInt(configProperties
-				.getProperty("smsc.server.port")));
+				.getProperty("smsc.server.port." + sessionNum)));
 		smppSessionConfig.setSystemId(configProperties
-				.getProperty("smsc.server.systemid"));
+				.getProperty("smsc.server.systemid." + sessionNum));
 		smppSessionConfig.setPassword(configProperties
-				.getProperty("smsc.server.password"));
+				.getProperty("smsc.server.password." + sessionNum));
 
 		// to enable monitoring (request expiration)
 		smppSessionConfig.setRequestExpiryTimeout(30000);
@@ -287,7 +301,9 @@ public class SMPPClient {
 			startAsynchronousSMPPConnectionMonitor();
 		} catch (Exception e) {
 			logger.error(
-					"Error occured while binding smpp session. Cannot send or receive any messages. Error is : "
+					"Error occured while binding smpp session "
+							+ sessionNum
+							+ ". Cannot send or receive any messages. Error is : "
 							+ e.getMessage(), e);
 		}
 	}
@@ -309,16 +325,21 @@ public class SMPPClient {
 								.sendRequestPdu(new EnquireLink(), 100000, true);
 
 						if (!enquireLinkFuture.await()) {
-							logger.warn("Failed to receive enquire_link_resp within specified time");
+							logger.warn("Failed to receive enquire_link_resp within specified time for session "
+									+ sessionNum);
 						} else if (enquireLinkFuture.isSuccess()) {
 							EnquireLinkResp enquireLinkResp = (EnquireLinkResp) enquireLinkFuture
 									.getResponse();
-							logger.warn("enquire link response: commandStatus ["
+							logger.warn("enquire link response: commandStatus [Session Num: "
+									+ sessionNum
+									+ ", "
 									+ enquireLinkResp.getCommandStatus()
 									+ "="
 									+ enquireLinkResp.getResultMessage() + "]");
 						} else {
-							logger.warn("Failed to properly receive enquire link response: "
+							logger.warn("Failed to properly receive enquire link response for session : "
+									+ sessionNum
+									+ ", "
 									+ enquireLinkFuture.getCause());
 						}
 
@@ -331,8 +352,8 @@ public class SMPPClient {
 						}
 					} catch (Exception e) {
 						logger.error(
-								"Exception occured while waiting for enquire link response: "
-										+ e.getMessage(), e);
+								"Exception occured while waiting for enquire link response for session : "
+										+ sessionNum + ", " + e.getMessage(), e);
 					}
 				}
 			}
@@ -342,7 +363,7 @@ public class SMPPClient {
 	}
 
 	public void releaseSMPPSession() {
-		logger.info("Releasing SMPP Session ...");
+		logger.info("Releasing SMPP Session " + sessionNum + " ...");
 		smppSession.unbind(5000);
 	}
 
@@ -364,12 +385,14 @@ public class SMPPClient {
 		// this is required to not causing server to hang from non-daemon
 		// threads this also makes sure all open Channels are closed to I
 		// *think*
-		logger.info("Releasing SMPP Session and shutting down client bootstrap and executors...");
+		logger.info("Releasing SMPP Session " + sessionNum
+				+ " and shutting down client bootstrap and executors...");
 
 		releaseSMPPSession();
 
 		if (smppSession != null) {
-			logger.info("Cleaning up session... (logging final counters)");
+			logger.info("Cleaning up session " + sessionNum
+					+ " ... (logging final counters)");
 
 			if (smppSession.hasCounters()) {
 				logger.info("tx-enquireLink :: "

@@ -42,6 +42,9 @@ public class Message {
 	private String status;
 
 	@Basic
+	private String messageServer;
+
+	@Basic
 	private String application;
 
 	public long getId() {
@@ -114,5 +117,13 @@ public class Message {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public String getMessageServer() {
+		return messageServer;
+	}
+
+	public void setMessageServer(String messageServer) {
+		this.messageServer = messageServer;
 	}
 }

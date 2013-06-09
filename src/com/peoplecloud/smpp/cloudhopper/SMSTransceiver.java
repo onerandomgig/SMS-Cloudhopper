@@ -30,7 +30,7 @@ public class SMSTransceiver {
 				"PMT", "http://msg2.zenithss.com",
 				"zenith.smpp", "zenith!@#$");
 
-		lTranceiver.sendSMS("SMPP send and receive is working now", "100", "6476788516");
+		lTranceiver.sendSMS("SMPP send and receive is working now using 4", "100", "4163201343");
 		
 //		String notificationResponsePost = lTranceiver
 //				.registerReceieveSMSCallbackURL("LOGGER",
