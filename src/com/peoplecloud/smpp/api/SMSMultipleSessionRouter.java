@@ -1,13 +1,16 @@
 package com.peoplecloud.smpp.api;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.peoplecloud.smpp.cloudhopper.SMPPClient;
+import com.peoplecloud.smpp.utils.VelocityEmailSender;
 
 public class SMSMultipleSessionRouter implements ISMSMessageRouter {
 	private int sessionToUse;
@@ -15,6 +18,10 @@ public class SMSMultipleSessionRouter implements ISMSMessageRouter {
 	private String lastUsedSMPPSession;
 	private List<SMPPClient> smppClients;
 	private Properties sysProps;
+
+	Map<Integer, SMPPClient> mapOfSMPPClients;
+
+	private VelocityEmailSender velocityEmailSenderService;
 
 	private static final Logger logger = LoggerFactory
 			.getLogger(SMSMultipleSessionRouter.class);
@@ -24,6 +31,55 @@ public class SMSMultipleSessionRouter implements ISMSMessageRouter {
 		sysProps = aSysProps;
 
 		smppClients = new ArrayList<SMPPClient>();
+		mapOfSMPPClients = new HashMap<Integer, SMPPClient>();
+	}
+
+	public VelocityEmailSender getVelocityEmailSenderService() {
+		return velocityEmailSenderService;
+	}
+
+	public void setVelocityEmailSenderService(
+			VelocityEmailSender velocityEmailSenderService) {
+		this.velocityEmailSenderService = velocityEmailSenderService;
+	}
+
+	public String getSMSPPServerById(Integer aSmscId) {
+		SMPPClient lClient = mapOfSMPPClients.get(aSmscId);
+		if (lClient != null) {
+			return lClient.getClientName();
+		}
+
+		return "";
+	}
+
+	public String sendSMSTo(String aMsg, String aSendFromNumber,
+			String aSendToNumber, int aSmscId) {
+		SMPPClient lClient = mapOfSMPPClients.get(aSmscId);
+
+		if (lClient == null) {
+
+			lClient = new SMPPClient(sysProps, aSmscId,
+					velocityEmailSenderService);
+
+			try {
+				lClient.initialize();
+				mapOfSMPPClients.put(aSmscId, lClient);
+			} catch (Exception ex) {
+				logger.error(
+						"Could not initialize session " + aSmscId
+								+ ". Will attempt to reinitialize. Error is : "
+								+ ex.getMessage(), ex);
+
+				lClient.reinitializeSession();
+			}
+		}
+
+		String lStatus = lClient.sendSMSMessage(aMsg, aSendFromNumber,
+				aSendToNumber);
+		logger.info("Using session " + lClient.getClientName()
+				+ " to send message, Index: " + aSmscId);
+
+		return lStatus;
 	}
 
 	public void initialize() {
@@ -32,10 +88,22 @@ public class SMSMultipleSessionRouter implements ISMSMessageRouter {
 
 		SMPPClient lClient = null;
 		for (int lCount = 1; lCount <= lSMPPSessionCount; lCount++) {
-			lClient = new SMPPClient(sysProps, lCount);
-			lClient.initialize();
+			lClient = new SMPPClient(sysProps, lCount,
+					velocityEmailSenderService);
 
-			smppClients.add(lClient);
+			try {
+				lClient.initialize();
+				smppClients.add(lClient);
+
+				mapOfSMPPClients.put(lCount, lClient);
+			} catch (Exception ex) {
+				logger.error(
+						"Could not initialize session " + lCount
+								+ ". Will attempt to reinitialize. Error is : "
+								+ ex.getMessage(), ex);
+
+				lClient.reinitializeSession();
+			}
 		}
 	}
 

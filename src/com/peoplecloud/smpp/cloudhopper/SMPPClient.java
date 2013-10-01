@@ -17,6 +17,8 @@ import com.cloudhopper.smpp.pdu.PduResponse;
 import com.cloudhopper.smpp.pdu.SubmitSm;
 import com.cloudhopper.smpp.pdu.SubmitSmResp;
 import com.peoplecloud.smpp.api.SMSMessageListener;
+import com.peoplecloud.smpp.exception.SMPPBindFailedException;
+import com.peoplecloud.smpp.utils.VelocityEmailSender;
 
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
@@ -46,17 +48,27 @@ public class SMPPClient {
 	private ScheduledThreadPoolExecutor monitorExecutor;
 	private DefaultSmppClient clientBootstrap;
 
+	private VelocityEmailSender velocityEmailSenderService;
+	private ClientSmppSessionHandler sessionHandler;
+
 	private int sessionNum;
 
 	private List<SMSMessageListener> listOfMessageListeners;
 
-	public SMPPClient(Properties aProps, int aSessionNum) {
+	public SMPPClient(Properties aProps, int aSessionNum,
+			VelocityEmailSender aVelocityEmailSenderService) {
 		sessionNum = aSessionNum;
 		configProperties = aProps;
 		listOfMessageListeners = new ArrayList<SMSMessageListener>();
+
+		velocityEmailSenderService = aVelocityEmailSenderService;
+
+		sessionHandler = new ClientSmppSessionHandler(this,
+				listOfMessageListeners, velocityEmailSenderService,
+				configProperties);
 	}
 
-	public void initialize() {
+	public void initialize() throws SMPPBindFailedException {
 		requestDeliveryReceipt = Boolean.parseBoolean(configProperties
 				.getProperty("smsc.server.requestdeliveryreceipt"));
 		//
@@ -107,6 +119,10 @@ public class SMPPClient {
 		bindSMPPSession();
 	}
 
+	public void reinitializeSession() {
+		sessionHandler.handleReinitialize();
+	}
+
 	/**
 	 * Could either implement SmppSessionHandler or only override select methods
 	 * by extending a DefaultSmppSessionHandler.
@@ -116,33 +132,65 @@ public class SMPPClient {
 
 		private List<SMSMessageListener> listOfListeners;
 		private SMPPClient thisClient;
+		private VelocityEmailSender velocityEmailSenderService;
+		private Properties configProperties;
 
 		public ClientSmppSessionHandler(SMPPClient aClient,
-				List<SMSMessageListener> aListOfListeners) {
+				List<SMSMessageListener> aListOfListeners,
+				VelocityEmailSender aVelocityEmailSenderService,
+				Properties configProps) {
 			super(logger);
 			thisClient = aClient;
 			listOfListeners = aListOfListeners;
+			velocityEmailSenderService = aVelocityEmailSenderService;
+			configProperties = configProps;
+		}
+
+		public void handleReinitialize() {
+			new Thread(new Runnable() {
+				public void run() {
+					boolean isRestarted = false;
+					while (!isRestarted) {
+						try {
+							int lReconnectTime = Integer.parseInt(configProperties
+									.getProperty("smpp.reconnect.time.interval"));
+							velocityEmailSenderService.sendMail(
+									"connectfail.vm",
+									thisClient.getClientName(),
+									configProperties
+											.getProperty("smpp.email.error.alert.subject")
+											+ " "
+											+ thisClient.getClientName()
+											+ " **",
+									"SMPP Connection failed to server "
+											+ thisClient.getClientName()
+											+ ". Will attempt to reconnect in "
+											+ lReconnectTime + " minutes.");
+
+							thisClient.shutdown();
+							logger.error("Shutting down SMPP Connection. Will reinitalize in "
+									+ lReconnectTime + " minutes.");
+							Thread.sleep(lReconnectTime * 60 * 1000);
+							logger.error("Shutdown Complete. Will **REINITIALIZE** now.");
+							thisClient.initialize();
+
+							isRestarted = true;
+							break;
+						} catch (Exception ex) {
+							logger.error(
+									"Failed to reinitialize. Channel was closed unexpectedly. SMPP Client "
+											+ thisClient.getClientName()
+											+ " will not work. Will attempt to reinitialize again. Error is: ",
+									ex);
+						}
+					}
+				}
+			}).start();
 		}
 
 		public void fireChannelUnexpectedlyClosed() {
 			logger.error("Default handling is to discard an unexpected channel closed");
-
-			new Thread(new Runnable() {
-				public void run() {
-					try {
-						thisClient.shutdown();
-						logger.error("Shutting down SMPP Connection. Will reinitalize in 60 seconds.");
-						Thread.sleep(60000);
-						logger.error("Shutdown Complete. Will **REINITIALIZE** now.");
-						thisClient.initialize();
-					} catch (Exception ex) {
-						logger.error(
-								"Failed to reinitialize. Channel was closed unexpectedly. SMPP Client will not work. Please **RESTART**",
-								ex);
-						System.exit(-1);
-					}
-				}
-			}).start();
+			handleReinitialize();
 		}
 
 		@Override
@@ -201,8 +249,8 @@ public class SMPPClient {
 		}
 	}
 
-	public String sendSMSMessage(String aMessage, String aSentFromNumber,
-			String aSendToNumber) {
+	public synchronized String sendSMSMessage(String aMessage,
+			String aSentFromNumber, String aSendToNumber) {
 		byte[] textBytes = CharsetUtil.encode(aMessage,
 				CharsetUtil.CHARSET_ISO_8859_1);
 
@@ -260,10 +308,7 @@ public class SMPPClient {
 				+ sessionNum);
 	}
 
-	public void bindSMPPSession() {
-		DefaultSmppSessionHandler sessionHandler = new ClientSmppSessionHandler(
-				this, listOfMessageListeners);
-
+	public void bindSMPPSession() throws SMPPBindFailedException {
 		logger.info("Binding SMPP Session " + sessionNum + " ...");
 
 		SmppSessionConfiguration smppSessionConfig = new SmppSessionConfiguration();
@@ -299,11 +344,26 @@ public class SMPPClient {
 
 			// send periodic requests to keep session alive.
 			startAsynchronousSMPPConnectionMonitor();
+
+			// Send Bind success email.
+			velocityEmailSenderService.sendMail(
+					"connectpass.vm",
+					getClientName(),
+					configProperties
+							.getProperty("smpp.email.success.alert.subject")
+							+ " " + getClientName() + " **",
+					"SMPP Connection succeeded to server " + getClientName());
 		} catch (Exception e) {
-			logger.error(
-					"Error occured while binding smpp session "
-							+ sessionNum
-							+ ". Cannot send or receive any messages. Error is : "
+
+			String errorMsg = "Error occured while binding smpp session "
+					+ getClientName()
+					+ ". Cannot send or receive any messages. Error is : "
+					+ e.getMessage();
+			logger.error(errorMsg);
+
+			throw new SMPPBindFailedException(
+					getClientName()
+							+ " failed to bind. Cannot send or receive any messages. Error is : "
 							+ e.getMessage(), e);
 		}
 	}
@@ -364,14 +424,19 @@ public class SMPPClient {
 
 	public void releaseSMPPSession() {
 		logger.info("Releasing SMPP Session " + sessionNum + " ...");
-		smppSession.unbind(5000);
+		if (smppSession != null) {
+			smppSession.unbind(5000);
+		}
 	}
 
 	public void shutdown() {
 		// Stop the enquire link thread.
 		isRunning = false;
-		mSMSCConnMonitorThread.interrupt();
-		mSMSCConnMonitorThread = null;
+
+		if (mSMSCConnMonitorThread != null) {
+			mSMSCConnMonitorThread.interrupt();
+			mSMSCConnMonitorThread = null;
+		}
 
 		try {
 			// Wait for the enquire link timeout at most (Not sure if its

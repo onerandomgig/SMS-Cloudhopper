@@ -266,6 +266,30 @@ public class SMSRestAPI implements SMSMessageListener {
 		return sendSMS(aMsg, aSendFromNumber, aSendToNumber, aAppName);
 	}
 
+	@GET
+	@Path("/sendto")
+	@Produces("application/json")
+	public Response requestSendMessageTo(
+			@QueryParam("appname") String aAppName,
+			@QueryParam("message") String aMsg,
+			@QueryParam("from") String aSendFromNumber,
+			@QueryParam("to") String aSendToNumber,
+			@QueryParam("smscid") Integer aSmscId) throws URISyntaxException {
+		return sendSMSTo(aMsg, aSendFromNumber, aSendToNumber, aAppName, aSmscId);
+	}
+
+	@POST
+	@Path("/sendto")
+	@Produces("application/json")
+	public Response sendMessageTo(@FormParam("appname") String aAppName,
+			@FormParam("message") String aMsg,
+			@FormParam("from") String aSendFromNumber,
+			@FormParam("to") String aSendToNumber,
+			@FormParam("smscid") Integer aSmscId) throws URISyntaxException {
+		return sendSMSTo(aMsg, aSendFromNumber, aSendToNumber, aAppName,
+				aSmscId);
+	}
+
 	@POST
 	@Path("/log")
 	@Produces("application/json")
@@ -433,6 +457,38 @@ public class SMSRestAPI implements SMSMessageListener {
 		persistMessageToDB(lMsg, aSendFromNumber, aSendToNumber, Message.MT,
 				aApplication, lSentMsg,
 				messageRouter.getLastUserServerToSendMessage());
+
+		if (logger.isDebugEnabled()) {
+			logger.debug("Send Msg Status: " + lRequestJSON.toJSONString());
+		}
+
+		return Response.status(Status.OK).entity(lRequestJSON).build();
+	}
+
+	private Response sendSMSTo(String aMsg, String aSendFromNumber,
+			String aSendToNumber, String aApplication, Integer aSmscId) {
+
+		String lMsg = new String(CharsetUtil.encode(aMsg,
+				CharsetUtil.NAME_MODIFIED_UTF8));
+
+		JSONObject lRequestJSON = new JSONObject();
+		lRequestJSON.put("msg", lMsg);
+		lRequestJSON.put("from", aSendFromNumber);
+		lRequestJSON.put("to", aSendToNumber);
+		lRequestJSON.put("smscid", aSmscId);
+
+		if (logger.isDebugEnabled()) {
+			logger.debug("Send Msg Request: " + lRequestJSON.toJSONString());
+		}
+
+		String lSentMsg = messageRouter.sendSMSTo(aMsg, aSendFromNumber,
+				aSendToNumber, aSmscId);
+		lRequestJSON.put("statusmsg", lSentMsg);
+
+		// Save message to database.
+		persistMessageToDB(lMsg, aSendFromNumber, aSendToNumber, Message.MT,
+				aApplication, lSentMsg,
+				messageRouter.getSMSPPServerById(aSmscId));
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Send Msg Status: " + lRequestJSON.toJSONString());

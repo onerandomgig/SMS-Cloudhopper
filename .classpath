@@ -79,5 +79,9 @@
 	<classpathentry kind="lib" path="lib/antlr-2.7.7.jar"/>
 	<classpathentry kind="lib" path="lib/snakeyaml-1.11.jar"/>
 	<classpathentry kind="lib" path="lib/mail-1.4.jar"/>
+	<classpathentry kind="lib" path="lib/velocity-1.7-dep.jar"/>
+	<classpathentry kind="lib" path="lib/velocity-1.7.jar"/>
+	<classpathentry kind="lib" path="lib/spring-context-support-3.2.2.RELEASE.jar"/>
+	<classpathentry kind="lib" path="lib/hibernate-ehcache-4.1.2.Final.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

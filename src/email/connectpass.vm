@@ -1,0 +1,14 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <body>
+        <b>*** SMPP CONNECTION SUCCESS NOTIFICATION ***</b> 
+        <br/><br/>
+        SMPP Application connected successfully to SMPP Server - ${serverName}.        
+        <br/><br/>
+        
+        <br/>
+        <b><u>**Auto generated notification message from SMPP Application. Do not reply.**</u></b>
+        <br/>
+    </body>
+</html>

@@ -34,14 +34,15 @@
 	<bean id="messageRouter" class="com.peoplecloud.smpp.api.SMSMultipleSessionRouter"
 		init-method="initialize">
 		<constructor-arg ref="sysPropsResource"></constructor-arg>
+		<property name="velocityEmailSenderService" ref="velocityEmailSenderService"></property>
 	</bean>
 
 	<!-- REST Services -->
 	<bean id="smsRestAPIService" name="smsRestAPIService"
 		class="com.peoplecloud.smpp.api.SMSRestAPI" init-method="initialize">
 
-	    <constructor-arg value="SMS REST API INTERFACE"></constructor-arg>
-	    
+		<constructor-arg value="SMS REST API INTERFACE"></constructor-arg>
+
 		<property name="messageRouter" ref="messageRouter"></property>
 		<property name="dbPersistanceService" ref="dbPersistanceService"></property>
 		<property name="smsCallbackService" ref="smsCallbackService"></property>
@@ -49,10 +50,10 @@
 
 	<bean id="securityInterceptor" name="securityInterceptor"
 		class="com.peoplecloud.smpp.api.RestSecurityInterceptor">
-	    
+
 		<property name="userDao" ref="userDao"></property>
 	</bean>
-	
+
 	<!-- Database Services -->
 	<bean id="dbPersistanceService" class="com.peoplecloud.smpp.service.MessagePersistanceService">
 		<property name="msgDAO" ref="msgDAO"></property>
@@ -60,9 +61,43 @@
 	<bean id="smsCallbackService" class="com.peoplecloud.smpp.service.SMSCallbackService">
 		<property name="callbackDAO" ref="callbackDAO"></property>
 	</bean>
-	
+
 	<!-- Data Access Objects -->
 	<bean id="userDao" class="com.peoplecloud.smpp.dao.UserDAO"></bean>
 	<bean id="msgDAO" class="com.peoplecloud.smpp.dao.MessageDAO"></bean>
 	<bean id="callbackDAO" class="com.peoplecloud.smpp.dao.SMSCallbackDAO"></bean>
+
+	<!-- Email Templates -->
+	<bean id="velocityEmailSenderService" class="com.peoplecloud.smpp.utils.VelocityEmailSender">
+		<property name="velocityEngine" ref="velocityEngine"></property>
+		<property name="mailerService" ref="mailerService"></property>
+		<property name="sysPropsResource" ref="sysPropsResource"></property>
+	</bean>
+
+	<bean id="velocityEngine"
+		class="org.springframework.ui.velocity.VelocityEngineFactoryBean">
+		<property name="velocityProperties">
+			<value>
+				resource.loader=class
+				class.resource.loader.class=org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader
+			</value>
+		</property>
+	</bean>
+
+	<bean id="mailerService" class="org.springframework.mail.javamail.JavaMailSenderImpl"
+		scope="singleton">
+		<property name="defaultEncoding" value="UTF-8" />
+		<property name="host" value="smtp.gmail.com" />
+		<property name="port" value="465" />
+		<property name="username" value="automailer@peoplecloudss.com" />
+		<property name="password" value="testing!@#$" />
+		<property name="javaMailProperties">
+			<value>
+				mail.debug=false
+				mail.smtp.auth=true
+				mail.smtp.socketFactory.class=javax.net.ssl.SSLSocketFactory
+				mail.smtp.socketFactory.fallback=false
+			</value>
+		</property>
+	</bean>
 </beans>
