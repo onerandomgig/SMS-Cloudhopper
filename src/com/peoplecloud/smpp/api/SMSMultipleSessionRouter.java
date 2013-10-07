@@ -56,7 +56,13 @@ public class SMSMultipleSessionRouter implements ISMSMessageRouter {
 			String aSendToNumber, int aSmscId) {
 		SMPPClient lClient = mapOfSMPPClients.get(aSmscId);
 
-		if (lClient == null) {
+		if (lClient == null
+				&& sysProps.getProperty("smsc.connection.name." + aSmscId) == null) {
+
+			logger.error("No configuration defined for SMS ID: " + aSmscId);
+			return "No configuration defined for SMS ID: " + aSmscId;
+
+		} else if (lClient == null) {
 
 			lClient = new SMPPClient(sysProps, aSmscId,
 					velocityEmailSenderService);

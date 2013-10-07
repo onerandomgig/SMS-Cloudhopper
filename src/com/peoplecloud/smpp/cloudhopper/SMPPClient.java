@@ -342,6 +342,8 @@ public class SMPPClient {
 			smppSession = clientBootstrap.bind(smppSessionConfig,
 					sessionHandler);
 
+			isRunning = true;
+			
 			// send periodic requests to keep session alive.
 			startAsynchronousSMPPConnectionMonitor();
 
