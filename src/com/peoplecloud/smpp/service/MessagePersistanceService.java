@@ -1,5 +1,6 @@
 package com.peoplecloud.smpp.service;
 
+import java.util.Date;
 import java.util.List;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class MessagePersistanceService {
 
 	@Transactional
 	public void saveMessage(Message aMsg) {
+		aMsg.setLoadDate(new Date());
 		msgDAO.save(aMsg);
 	}
 

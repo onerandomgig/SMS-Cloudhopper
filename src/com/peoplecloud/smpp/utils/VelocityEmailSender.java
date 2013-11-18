@@ -7,6 +7,8 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
@@ -34,6 +36,12 @@ public class VelocityEmailSender {
 	private JavaMailSender mailerService;
 	private Properties sysPropsResource;
 
+	private ExecutorService emailSenderThreadPool;
+
+	public VelocityEmailSender() {
+		emailSenderThreadPool = Executors.newFixedThreadPool(20);
+	}
+	
 	public VelocityEngine getVelocityEngine() {
 		return velocityEngine;
 	}
@@ -58,7 +66,7 @@ public class VelocityEmailSender {
 		this.sysPropsResource = sysPropsResource;
 	}
 
-	public void sendMail(String aTemplate, String aServerName, String aSubj,
+	public synchronized void sendMail(String aTemplate, String aServerName, String aSubj,
 			String aError) {
 		Map<String, Object> hTemplateVariables = new HashMap<String, Object>();
 		hTemplateVariables.put("template", aTemplate);
@@ -86,27 +94,31 @@ public class VelocityEmailSender {
 	 */
 	public void send(final SimpleMailMessage msg,
 			final Map<String, Object> hTemplateVariables) {
-		MimeMessagePreparator preparator = new MimeMessagePreparator() {
-			public void prepare(MimeMessage mimeMessage) throws Exception {
-				MimeMessageHelper message = new MimeMessageHelper(mimeMessage);
-				message.setTo(msg.getTo());
-				message.setFrom(msg.getFrom());
-				message.setSubject(msg.getSubject());
+		emailSenderThreadPool.execute(new Runnable(){
+			public void run() {
+				MimeMessagePreparator preparator = new MimeMessagePreparator() {
+					public void prepare(MimeMessage mimeMessage) throws Exception {
+						MimeMessageHelper message = new MimeMessageHelper(mimeMessage);
+						message.setTo(msg.getTo());
+						message.setFrom(msg.getFrom());
+						message.setSubject(msg.getSubject());
 
-				String body = VelocityEngineUtils.mergeTemplateIntoString(
-						velocityEngine,
-						"/email/" + hTemplateVariables.get("template"),
-						"utf-8", hTemplateVariables);
+						String body = VelocityEngineUtils.mergeTemplateIntoString(
+								velocityEngine,
+								"/email/" + hTemplateVariables.get("template"),
+								"utf-8", hTemplateVariables);
 
-				logger.info("body: " + body);
+						logger.info("body: " + body);
 
-				message.setText(body, true);
+						message.setText(body, true);
+					}
+				};
+
+				mailerService.send(preparator);
+
+				logger.info("Sent e-mail to " + msg.getTo());
 			}
-		};
-
-		mailerService.send(preparator);
-
-		logger.info("Sent e-mail to " + msg.getTo());
+		});
 	}
 
 	public void sendWithAttachment(final Map<String, Object> hTemplateVariables) {

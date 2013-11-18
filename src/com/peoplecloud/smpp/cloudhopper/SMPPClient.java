@@ -29,34 +29,35 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("rawtypes")
 public class SMPPClient {
-	private static final Logger logger = LoggerFactory
-			.getLogger(SMPPClient.class);
+	private static final Logger	        logger	= LoggerFactory
+	                                                   .getLogger(SMPPClient.class);
 
-	private boolean requestDeliveryReceipt;
-	private boolean isRunning;
-	private SmppSession smppSession;
+	private boolean	                    requestDeliveryReceipt;
+	private boolean	                    isRunning;
+	private SmppSession	                smppSession;
 
-	private Properties configProperties;
+	private Properties	                configProperties;
 
-	private Thread mSMSCConnMonitorThread;
-	private ThreadPoolExecutor executor;
-	private ScheduledThreadPoolExecutor monitorExecutor;
-	private DefaultSmppClient clientBootstrap;
+	private Thread	                    mSMSCConnMonitorThread;
+	private ThreadPoolExecutor	        executor;
+	private ScheduledThreadPoolExecutor	monitorExecutor;
+	private DefaultSmppClient	        clientBootstrap;
 
-	private VelocityEmailSender velocityEmailSenderService;
-	private ClientSmppSessionHandler sessionHandler;
+	private VelocityEmailSender	        velocityEmailSenderService;
+	private ClientSmppSessionHandler	sessionHandler;
 
-	private int sessionNum;
+	private int	                        sessionNum;
 
-	private List<SMSMessageListener> listOfMessageListeners;
+	private List<SMSMessageListener>	listOfMessageListeners;
 
 	public SMPPClient(Properties aProps, int aSessionNum,
-			VelocityEmailSender aVelocityEmailSenderService) {
+	        VelocityEmailSender aVelocityEmailSenderService) {
 		sessionNum = aSessionNum;
 		configProperties = aProps;
 		listOfMessageListeners = new ArrayList<SMSMessageListener>();
@@ -64,13 +65,13 @@ public class SMPPClient {
 		velocityEmailSenderService = aVelocityEmailSenderService;
 
 		sessionHandler = new ClientSmppSessionHandler(this,
-				listOfMessageListeners, velocityEmailSenderService,
-				configProperties);
+		        listOfMessageListeners, velocityEmailSenderService,
+		        configProperties);
 	}
 
 	public void initialize() throws SMPPBindFailedException {
 		requestDeliveryReceipt = Boolean.parseBoolean(configProperties
-				.getProperty("smsc.server.requestdeliveryreceipt"));
+		        .getProperty("smsc.server.requestdeliveryreceipt"));
 		//
 		// setup 3 things required for any session we plan on creating
 		//
@@ -88,17 +89,17 @@ public class SMPPClient {
 		// with - this is probably a thread pool that can be shared with between
 		// all client bootstraps
 		monitorExecutor = (ScheduledThreadPoolExecutor) Executors
-				.newScheduledThreadPool(1, new ThreadFactory() {
-					private AtomicInteger sequence = new AtomicInteger(0);
+		        .newScheduledThreadPool(1, new ThreadFactory() {
+			        private AtomicInteger	sequence	= new AtomicInteger(0);
 
-					@Override
-					public Thread newThread(Runnable r) {
-						Thread t = new Thread(r);
-						t.setName("SmppClientSessionWindowMonitorPool-"
-								+ sequence.getAndIncrement());
-						return t;
-					}
-				});
+			        @Override
+			        public Thread newThread(Runnable r) {
+				        Thread t = new Thread(r);
+				        t.setName("SmppClientSessionWindowMonitorPool-"
+				                + sequence.getAndIncrement());
+				        return t;
+			        }
+		        });
 
 		// a single instance of a client bootstrap can technically be shared
 		// between any sessions that are created (a session can go to any
@@ -111,7 +112,7 @@ public class SMPPClient {
 		// threads it will ever use, despite the "max pool size", etc. set on
 		// the executor passed in here
 		clientBootstrap = new DefaultSmppClient(
-				Executors.newCachedThreadPool(), 1, monitorExecutor);
+		        Executors.newCachedThreadPool(), 1, monitorExecutor);
 
 		//
 		// setup configuration for a client session
@@ -128,17 +129,17 @@ public class SMPPClient {
 	 * by extending a DefaultSmppSessionHandler.
 	 */
 	public static class ClientSmppSessionHandler extends
-			DefaultSmppSessionHandler {
+	        DefaultSmppSessionHandler {
 
-		private List<SMSMessageListener> listOfListeners;
-		private SMPPClient thisClient;
-		private VelocityEmailSender velocityEmailSenderService;
-		private Properties configProperties;
+		private List<SMSMessageListener>	listOfListeners;
+		private SMPPClient		         thisClient;
+		private VelocityEmailSender		 velocityEmailSenderService;
+		private Properties		         configProperties;
 
 		public ClientSmppSessionHandler(SMPPClient aClient,
-				List<SMSMessageListener> aListOfListeners,
-				VelocityEmailSender aVelocityEmailSenderService,
-				Properties configProps) {
+		        List<SMSMessageListener> aListOfListeners,
+		        VelocityEmailSender aVelocityEmailSenderService,
+		        Properties configProps) {
 			super(logger);
 			thisClient = aClient;
 			listOfListeners = aListOfListeners;
@@ -147,45 +148,43 @@ public class SMPPClient {
 		}
 
 		public void handleReinitialize() {
-			new Thread(new Runnable() {
-				public void run() {
-					boolean isRestarted = false;
-					while (!isRestarted) {
-						try {
-							int lReconnectTime = Integer.parseInt(configProperties
-									.getProperty("smpp.reconnect.time.interval"));
-							velocityEmailSenderService.sendMail(
-									"connectfail.vm",
-									thisClient.getClientName(),
-									configProperties
-											.getProperty("smpp.email.error.alert.subject")
-											+ " "
-											+ thisClient.getClientName()
-											+ " **",
-									"SMPP Connection failed to server "
-											+ thisClient.getClientName()
-											+ ". Will attempt to reconnect in "
-											+ lReconnectTime + " minutes.");
+			boolean isRestarted = false;
 
-							thisClient.shutdown();
-							logger.error("Shutting down SMPP Connection. Will reinitalize in "
-									+ lReconnectTime + " minutes.");
-							Thread.sleep(lReconnectTime * 60 * 1000);
-							logger.error("Shutdown Complete. Will **REINITIALIZE** now.");
-							thisClient.initialize();
+			while (!isRestarted) {
+				try {
+					int lReconnectTime = Integer.parseInt(configProperties
+					        .getProperty("smpp.reconnect.time.interval"));
+					velocityEmailSenderService
+					        .sendMail(
+					                "connectfail.vm",
+					                thisClient.getClientName(),
+					                configProperties
+					                        .getProperty("smpp.email.error.alert.subject")
+					                        + " "
+					                        + thisClient.getClientName()
+					                        + " **",
+					                "SMPP Connection failed to server "
+					                        + thisClient.getClientName()
+					                        + ". Will attempt to reconnect in "
+					                        + lReconnectTime + " minutes.");
 
-							isRestarted = true;
-							break;
-						} catch (Exception ex) {
-							logger.error(
-									"Failed to reinitialize. Channel was closed unexpectedly. SMPP Client "
-											+ thisClient.getClientName()
-											+ " will not work. Will attempt to reinitialize again. Error is: ",
-									ex);
-						}
-					}
+					thisClient.shutdown();
+					logger.error("Shutting down SMPP Connection. Will reinitalize in "
+					        + lReconnectTime + " minutes.");
+					Thread.sleep(lReconnectTime * 60 * 1000);
+					logger.error("Shutdown Complete. Will **REINITIALIZE** now.");
+					thisClient.initialize();
+
+					isRestarted = true;
+					break;
+				} catch (Exception ex) {
+					logger.error(
+					        "Failed to reinitialize. Channel was closed unexpectedly. SMPP Client "
+					                + thisClient.getClientName()
+					                + " will not work. Will attempt to reinitialize again. Error is: ",
+					        ex);
 				}
-			}).start();
+			}
 		}
 
 		public void fireChannelUnexpectedlyClosed() {
@@ -200,18 +199,18 @@ public class SMPPClient {
 				fireChannelUnexpectedlyClosed();
 			} else {
 				logger.warn(
-						"Default handling is to discard an unknown throwable:",
-						t);
+				        "Default handling is to discard an unknown throwable:",
+				        t);
 			}
 		}
 
 		@Override
 		public void firePduRequestExpired(PduRequest pduRequest) {
 			logger.warn("PDU request expired: [ " + pduRequest
-					+ " ] [ Command ID : " + pduRequest.getCommandId()
-					+ ", Command Status : " + pduRequest.getCommandStatus()
-					+ ", Command Length : " + pduRequest.getCommandStatus()
-					+ " ]");
+			        + " ] [ Command ID : " + pduRequest.getCommandId()
+			        + ", Command Status : " + pduRequest.getCommandStatus()
+			        + ", Command Length : " + pduRequest.getCommandStatus()
+			        + " ]");
 		}
 
 		@Override
@@ -221,7 +220,7 @@ public class SMPPClient {
 			// do any logic here
 			if (logger.isDebugEnabled()) {
 				logger.debug("PDU request received: [ " + pduRequest
-						+ " ], Command ID: " + pduRequest.getCommandId());
+				        + " ], Command ID: " + pduRequest.getCommandId());
 			}
 
 			if (pduRequest.getCommandId() == SmppConstants.CMD_ID_DELIVER_SM) {
@@ -231,17 +230,17 @@ public class SMPPClient {
 				Address destAddress = mo.getDestAddress();
 				byte[] shortMessage = mo.getShortMessage();
 				String sms = CharsetUtil.decode(shortMessage,
-						CharsetUtil.CHARSET_ISO_8859_1);
+				        CharsetUtil.CHARSET_ISO_8859_1);
 
 				if (logger.isDebugEnabled()) {
 					logger.debug("Received Message is :: " + sms + ", from :: "
-							+ sourceAddress.getAddress());
+					        + sourceAddress.getAddress());
 				}
 
 				for (SMSMessageListener lListener : listOfListeners) {
 					lListener.notify(sms, sourceAddress.getAddress(),
-							destAddress.getAddress(),
-							thisClient.getClientName());
+					        destAddress.getAddress(),
+					        thisClient.getClientName());
 				}
 			}
 
@@ -250,9 +249,9 @@ public class SMPPClient {
 	}
 
 	public synchronized String sendSMSMessage(String aMessage,
-			String aSentFromNumber, String aSendToNumber) {
+	        String aSentFromNumber, String aSendToNumber) {
 		byte[] textBytes = CharsetUtil.encode(aMessage,
-				CharsetUtil.CHARSET_ISO_8859_1);
+		        CharsetUtil.CHARSET_ISO_8859_1);
 
 		try {
 			SubmitSm submitMsg = new SubmitSm();
@@ -260,32 +259,32 @@ public class SMPPClient {
 			// add delivery receipt if enabled.
 			if (requestDeliveryReceipt) {
 				submitMsg
-						.setRegisteredDelivery(SmppConstants.REGISTERED_DELIVERY_SMSC_RECEIPT_REQUESTED);
+				        .setRegisteredDelivery(SmppConstants.REGISTERED_DELIVERY_SMSC_RECEIPT_REQUESTED);
 			}
 
 			submitMsg.setSourceAddress(new Address((byte) 0x03, (byte) 0x00,
-					aSentFromNumber));
+			        aSentFromNumber));
 			submitMsg.setDestAddress(new Address((byte) 0x01, (byte) 0x01,
-					aSendToNumber));
+			        aSendToNumber));
 			submitMsg.setShortMessage(textBytes);
 
 			logger.debug("About to send message to " + aSendToNumber
-					+ ", Msg is :: " + aMessage + ", from :: "
-					+ aSentFromNumber + " using session " + sessionNum);
+			        + ", Msg is :: " + aMessage + ", from :: "
+			        + aSentFromNumber + " using session " + sessionNum);
 
 			SubmitSmResp submitResp = smppSession.submit(submitMsg, 15000);
 			logger.debug("Message sent to " + aSendToNumber
-					+ " with message id " + submitResp.getMessageId()
-					+ " using session " + sessionNum);
+			        + " with message id " + submitResp.getMessageId()
+			        + " using session " + sessionNum);
 			return "Message ID - " + submitResp.getMessageId();
 		} catch (Exception ex) {
 			logger.error("Exception sending message [Msg, From, To] :: ["
-					+ aMessage + ", " + aSentFromNumber + ", " + aSendToNumber
-					+ ", {Session Number: }" + sessionNum + "]", ex);
+			        + aMessage + ", " + aSentFromNumber + ", " + aSendToNumber
+			        + ", {Session Number: }" + sessionNum + "]", ex);
 		}
 
 		logger.debug("Message **NOT** sent to " + aSendToNumber
-				+ " from {session number} " + sessionNum);
+		        + " from {session number} " + sessionNum);
 		return "Message Not Submitted to " + aSendToNumber;
 	}
 
@@ -305,7 +304,7 @@ public class SMPPClient {
 
 	public String getClientName() {
 		return configProperties.getProperty("smsc.connection.name."
-				+ sessionNum);
+		        + sessionNum);
 	}
 
 	public void bindSMPPSession() throws SMPPBindFailedException {
@@ -314,19 +313,19 @@ public class SMPPClient {
 		SmppSessionConfiguration smppSessionConfig = new SmppSessionConfiguration();
 		smppSessionConfig.setWindowSize(1);
 		smppSessionConfig.setName(configProperties
-				.getProperty("smsc.connection.name." + sessionNum));
+		        .getProperty("smsc.connection.name." + sessionNum));
 		smppSessionConfig.setType(SmppBindType.TRANSCEIVER);
 		smppSessionConfig.setConnectTimeout(10000);
 		smppSessionConfig.getLoggingOptions().setLogBytes(true);
 
 		smppSessionConfig.setHost(configProperties
-				.getProperty("smsc.server.host." + sessionNum));
+		        .getProperty("smsc.server.host." + sessionNum));
 		smppSessionConfig.setPort(Integer.parseInt(configProperties
-				.getProperty("smsc.server.port." + sessionNum)));
+		        .getProperty("smsc.server.port." + sessionNum)));
 		smppSessionConfig.setSystemId(configProperties
-				.getProperty("smsc.server.systemid." + sessionNum));
+		        .getProperty("smsc.server.systemid." + sessionNum));
 		smppSessionConfig.setPassword(configProperties
-				.getProperty("smsc.server.password." + sessionNum));
+		        .getProperty("smsc.server.password." + sessionNum));
 
 		// to enable monitoring (request expiration)
 		smppSessionConfig.setRequestExpiryTimeout(30000);
@@ -340,33 +339,33 @@ public class SMPPClient {
 			// create a session by having the bootstrap connect a
 			// socket, send the bind request, and wait for a bind response
 			smppSession = clientBootstrap.bind(smppSessionConfig,
-					sessionHandler);
+			        sessionHandler);
 
 			isRunning = true;
-			
+
 			// send periodic requests to keep session alive.
 			startAsynchronousSMPPConnectionMonitor();
 
 			// Send Bind success email.
 			velocityEmailSenderService.sendMail(
-					"connectpass.vm",
-					getClientName(),
-					configProperties
-							.getProperty("smpp.email.success.alert.subject")
-							+ " " + getClientName() + " **",
-					"SMPP Connection succeeded to server " + getClientName());
+			        "connectpass.vm",
+			        getClientName(),
+			        configProperties
+			                .getProperty("smpp.email.success.alert.subject")
+			                + " " + getClientName() + " **",
+			        "SMPP Connection succeeded to server " + getClientName());
 		} catch (Exception e) {
 
 			String errorMsg = "Error occured while binding smpp session "
-					+ getClientName()
-					+ ". Cannot send or receive any messages. Error is : "
-					+ e.getMessage();
+			        + getClientName()
+			        + ". Cannot send or receive any messages. Error is : "
+			        + e.getMessage();
 			logger.error(errorMsg);
 
 			throw new SMPPBindFailedException(
-					getClientName()
-							+ " failed to bind. Cannot send or receive any messages. Error is : "
-							+ e.getMessage(), e);
+			        getClientName()
+			                + " failed to bind. Cannot send or receive any messages. Error is : "
+			                + e.getMessage(), e);
 		}
 	}
 
@@ -384,38 +383,38 @@ public class SMPPClient {
 						// future, and then optionally choose to pick when we
 						// wait for it
 						WindowFuture<Integer, PduRequest, PduResponse> enquireLinkFuture = smppSession
-								.sendRequestPdu(new EnquireLink(), 100000, true);
+						        .sendRequestPdu(new EnquireLink(), 100000, true);
 
 						if (!enquireLinkFuture.await()) {
 							logger.warn("Failed to receive enquire_link_resp within specified time for session "
-									+ sessionNum);
+							        + sessionNum);
 						} else if (enquireLinkFuture.isSuccess()) {
 							EnquireLinkResp enquireLinkResp = (EnquireLinkResp) enquireLinkFuture
-									.getResponse();
+							        .getResponse();
 							logger.warn("enquire link response: commandStatus [Session Num: "
-									+ sessionNum
-									+ ", "
-									+ enquireLinkResp.getCommandStatus()
-									+ "="
-									+ enquireLinkResp.getResultMessage() + "]");
+							        + sessionNum
+							        + ", "
+							        + enquireLinkResp.getCommandStatus()
+							        + "="
+							        + enquireLinkResp.getResultMessage() + "]");
 						} else {
 							logger.warn("Failed to properly receive enquire link response for session : "
-									+ sessionNum
-									+ ", "
-									+ enquireLinkFuture.getCause());
+							        + sessionNum
+							        + ", "
+							        + enquireLinkFuture.getCause());
 						}
 
 						// Wait for the timeout interval before rechecking.
 						try {
 							Thread.sleep(Long.parseLong(configProperties
-									.getProperty("smpp.session.enquirelink.interval")));
+							        .getProperty("smpp.session.enquirelink.interval")));
 						} catch (InterruptedException ie) {
 							// Ignore.
 						}
 					} catch (Exception e) {
 						logger.error(
-								"Exception occured while waiting for enquire link response for session : "
-										+ sessionNum + ", " + e.getMessage(), e);
+						        "Exception occured while waiting for enquire link response for session : "
+						                + sessionNum + ", " + e.getMessage(), e);
 					}
 				}
 			}
@@ -444,7 +443,7 @@ public class SMPPClient {
 			// Wait for the enquire link timeout at most (Not sure if its
 			// required as i have already interrupted the thread)
 			Thread.sleep(Long.parseLong(configProperties
-					.getProperty("smpp.session.enquirelink.interval")));
+			        .getProperty("smpp.session.enquirelink.interval")));
 		} catch (InterruptedException ie) {
 			// Ignore.
 		}
@@ -453,31 +452,31 @@ public class SMPPClient {
 		// threads this also makes sure all open Channels are closed to I
 		// *think*
 		logger.info("Releasing SMPP Session " + sessionNum
-				+ " and shutting down client bootstrap and executors...");
+		        + " and shutting down client bootstrap and executors...");
 
 		releaseSMPPSession();
 
 		if (smppSession != null) {
 			logger.info("Cleaning up session " + sessionNum
-					+ " ... (logging final counters)");
+			        + " ... (logging final counters)");
 
 			if (smppSession.hasCounters()) {
 				logger.info("tx-enquireLink :: "
-						+ smppSession.getCounters().getTxEnquireLink());
+				        + smppSession.getCounters().getTxEnquireLink());
 				logger.info("tx-submitSM :: "
-						+ smppSession.getCounters().getTxSubmitSM());
+				        + smppSession.getCounters().getTxSubmitSM());
 				logger.info("tx-deliverSM :: "
-						+ smppSession.getCounters().getTxDeliverSM());
+				        + smppSession.getCounters().getTxDeliverSM());
 				logger.info("tx-dataSM :: "
-						+ smppSession.getCounters().getTxDataSM());
+				        + smppSession.getCounters().getTxDataSM());
 				logger.info("rx-enquireLink :: "
-						+ smppSession.getCounters().getRxEnquireLink());
+				        + smppSession.getCounters().getRxEnquireLink());
 				logger.info("rx-submitSM :: "
-						+ smppSession.getCounters().getRxSubmitSM());
+				        + smppSession.getCounters().getRxSubmitSM());
 				logger.info("rx-deliverSM :: "
-						+ smppSession.getCounters().getRxDeliverSM());
+				        + smppSession.getCounters().getRxDeliverSM());
 				logger.info("rx-dataSM :: "
-						+ smppSession.getCounters().getRxDataSM());
+				        + smppSession.getCounters().getRxDataSM());
 			}
 
 			smppSession.destroy();

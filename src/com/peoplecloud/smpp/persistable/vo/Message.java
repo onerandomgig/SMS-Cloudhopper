@@ -46,6 +46,9 @@ public class Message {
 
 	@Basic
 	private String application;
+	
+	@Basic
+	private Date loadDate;
 
 	public long getId() {
 		return id;
@@ -126,4 +129,12 @@ public class Message {
 	public void setMessageServer(String messageServer) {
 		this.messageServer = messageServer;
 	}
+	
+	public Date getLoadDate() {
+	    return loadDate;
+    }
+	
+	public void setLoadDate(Date loadDate) {
+	    this.loadDate = loadDate;
+    }
 }
